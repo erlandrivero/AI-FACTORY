@@ -1201,6 +1201,40 @@ def project_execution_page():
         key="project_idea_input",
     )
     
+    # Deployment Platform Selection
+    st.subheader("🚀 Deployment Target")
+    st.caption("Select where you plan to deploy this project")
+    
+    deployment_platforms = [
+        "Vercel (React, Next.js, Static)",
+        "Netlify (Static, JAMstack)",
+        "Streamlit Cloud (Python/Streamlit apps)",
+        "Railway (Full-stack, Database)",
+        "Render (Full-stack, Free tier)",
+        "Heroku (Full-stack)",
+        "AWS/GCP/Azure (Enterprise)",
+        "No specific platform yet"
+    ]
+    
+    selected_platform = st.selectbox(
+        "Target Platform",
+        options=deployment_platforms,
+        index=7,
+        help="Choose your deployment platform. The crew will tailor code and configurations for this platform."
+    )
+    
+    # Deliverables Selection
+    st.subheader("📦 What to Build")
+    st.caption("Specify what deliverables you need")
+    
+    col_d1, col_d2 = st.columns(2)
+    with col_d1:
+        include_code = st.checkbox("✅ Generate actual code files", value=True, help="Generate ready-to-use source code")
+        include_deployment = st.checkbox("📋 Deployment instructions", value=True, help="Include deployment guides and configs")
+    with col_d2:
+        include_docs = st.checkbox("📚 Documentation", value=True, help="README, API docs, setup guides")
+        include_tests = st.checkbox("🧪 Test files", value=False, help="Generate unit tests and test cases")
+    
     # File upload section
     st.subheader("📚 Background Materials (Optional)")
     st.caption("Upload reference files for agents to review (notebooks, docs, datasets, code, etc.)")
@@ -1305,14 +1339,62 @@ def project_execution_page():
             # Build context from uploaded files
             file_context = build_context_from_files(files_data)
             
+            # Build deliverables requirements
+            deliverables_req = []
+            if include_code:
+                deliverables_req.append("- Complete, ready-to-use source code files with proper structure")
+            if include_deployment:
+                deliverables_req.append("- Deployment configuration files (package.json, requirements.txt, Dockerfile, etc.)")
+                deliverables_req.append(f"- Platform-specific deployment guide for {selected_platform}")
+            if include_docs:
+                deliverables_req.append("- README.md with setup instructions")
+                deliverables_req.append("- API documentation if applicable")
+                deliverables_req.append("- Architecture documentation")
+            if include_tests:
+                deliverables_req.append("- Unit test files")
+                deliverables_req.append("- Testing documentation")
+            
+            deliverables_section = "\n".join(deliverables_req) if deliverables_req else "- High-level plan and recommendations"
+            
             # Single high-level task for orchestrator
             task_description = (
-                "You are the Orchestrator for this project. Analyze the user's idea, "
-                "develop a clear execution plan, break it into tasks, and coordinate the work. "
-                "Delegate to other available agents as needed. "
-                "Deliver a final, cohesive result, including the plan, key decisions, artifacts, and next steps.\n\n"
-                f"User's idea:\n{idea.strip()}"
-                f"{file_context}"
+                "You are the Orchestrator for this project. Your job is to coordinate the team to build ACTUAL, WORKING CODE and deliverables.\n\n"
+                "🎯 PRIMARY OBJECTIVE:\n"
+                "Analyze the user's idea, create an execution plan, delegate tasks, and ensure the team delivers CONCRETE ARTIFACTS.\n\n"
+                "⚠️ CRITICAL: This is NOT about writing reports or documentation about what could be built. "
+                "The team must produce ACTUAL SOURCE CODE FILES that can be immediately used.\n\n"
+                f"📦 REQUIRED DELIVERABLES:\n{deliverables_section}\n\n"
+                f"🚀 TARGET DEPLOYMENT PLATFORM: {selected_platform}\n"
+                "Ensure all code, configurations, and instructions are optimized for this platform.\n\n"
+                "📋 DELIVERABLE FORMAT:\n"
+                "Present each code file clearly with:\n"
+                "1. Filename (e.g., `src/App.js`, `requirements.txt`)\n"
+                "2. Complete file contents in properly formatted code blocks\n"
+                "3. Brief explanation of what the file does\n\n"
+                f"💡 USER'S PROJECT IDEA:\n{idea.strip()}\n"
+                f"{file_context}\n\n"
+                "🔧 EXECUTION GUIDELINES:\n"
+                "1. Analyze requirements thoroughly\n"
+                "2. Design the architecture\n"
+                "3. Generate ALL necessary code files\n"
+                "4. Include configuration files (package.json, requirements.txt, etc.)\n"
+                f"5. Provide deployment instructions for {selected_platform}\n"
+                "6. Ensure code follows best practices and is production-ready\n\n"
+                "📊 FINAL OUTPUT STRUCTURE:\n"
+                "## Project Overview\n"
+                "[Brief description]\n\n"
+                "## Architecture\n"
+                "[System design and tech stack]\n\n"
+                "## Source Code Files\n"
+                "### File: filename.ext\n"
+                "```language\n"
+                "[complete code]\n"
+                "```\n"
+                "[Repeat for each file]\n\n"
+                "## Deployment Guide\n"
+                f"[Step-by-step for {selected_platform}]\n\n"
+                "## Next Steps\n"
+                "[What to do after getting these files]"
             )
             tasks.append(Task(
                 description=task_description,
@@ -1333,14 +1415,30 @@ def project_execution_page():
             # Build context from uploaded files
             file_context = build_context_from_files(files_data)
             
+            # Build deliverables requirements
+            deliverables_req = []
+            if include_code:
+                deliverables_req.append("- Complete source code files")
+            if include_deployment:
+                deliverables_req.append(f"- Deployment configs for {selected_platform}")
+            if include_docs:
+                deliverables_req.append("- Documentation files")
+            if include_tests:
+                deliverables_req.append("- Test files")
+            
+            deliverables_section = "\n".join(deliverables_req) if deliverables_req else "- Analysis and recommendations"
+            
             # Sequential: Create a task for each agent in order
             crew_process = Process.sequential
             for agent_profile in saved_agents:
                 task_desc = (
-                    f"As the {agent_profile.get('role', 'Agent')}, analyze the user's project idea and contribute your specialized expertise. "
-                    f"Build upon previous work if available.\n\n"
-                    f"Project idea: {idea.strip()}\n\n"
-                    f"Your goal: {agent_profile.get('goal', 'Contribute to the project')}"
+                    f"As the {agent_profile.get('role', 'Agent')}, contribute your specialized expertise to build ACTUAL WORKING CODE.\n\n"
+                    f"⚠️ CRITICAL: Generate concrete code files, not just descriptions or plans.\n\n"
+                    f"📦 REQUIRED DELIVERABLES:\n{deliverables_section}\n\n"
+                    f"🚀 TARGET PLATFORM: {selected_platform}\n\n"
+                    f"💡 PROJECT IDEA: {idea.strip()}\n\n"
+                    f"🎯 YOUR GOAL: {agent_profile.get('goal', 'Contribute to the project')}\n\n"
+                    f"Build upon previous work if available. Provide actual code in properly formatted code blocks with filenames.\n"
                     f"{file_context}"
                 )
                 tasks.append(Task(
@@ -1353,15 +1451,30 @@ def project_execution_page():
             # Build context from uploaded files
             file_context = build_context_from_files(files_data)
             
+            # Build deliverables requirements
+            deliverables_req = []
+            if include_code:
+                deliverables_req.append("- Source code files")
+            if include_deployment:
+                deliverables_req.append(f"- Deployment setup for {selected_platform}")
+            if include_docs:
+                deliverables_req.append("- Documentation")
+            if include_tests:
+                deliverables_req.append("- Tests")
+            
+            deliverables_section = "\n".join(deliverables_req) if deliverables_req else "- Collaborative solution"
+            
             # Consensus: Each agent contributes to collaborative solution
             crew_process = Process.sequential
             for agent_profile in saved_agents:
                 task_desc = (
-                    f"As the {agent_profile.get('role', 'Agent')}, collaborate on the user's project idea. "
-                    f"Review previous contributions and add your unique perspective. "
-                    f"Work toward a consensus solution that incorporates all viewpoints.\n\n"
-                    f"Project idea: {idea.strip()}\n\n"
-                    f"Your goal: {agent_profile.get('goal', 'Contribute collaboratively')}"
+                    f"As the {agent_profile.get('role', 'Agent')}, collaborate to build REAL, WORKING CODE.\n\n"
+                    f"⚠️ IMPORTANT: Generate actual code files with proper structure, not just plans.\n\n"
+                    f"📦 DELIVERABLES NEEDED:\n{deliverables_section}\n\n"
+                    f"🚀 PLATFORM: {selected_platform}\n\n"
+                    f"💡 PROJECT: {idea.strip()}\n\n"
+                    f"🎯 GOAL: {agent_profile.get('goal', 'Contribute collaboratively')}\n\n"
+                    f"Review previous contributions, add your perspective, and work toward a consensus solution with concrete code.\n"
                     f"{file_context}"
                 )
                 tasks.append(Task(
@@ -1464,7 +1577,14 @@ def project_execution_page():
                 'process_type': process_type,
                 'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                 'idea': idea.strip(),
-                'num_files': len(files_data)
+                'num_files': len(files_data),
+                'platform': selected_platform,
+                'deliverables': {
+                    'code': include_code,
+                    'deployment': include_deployment,
+                    'docs': include_docs,
+                    'tests': include_tests
+                }
             }
             
         except Exception as e:
@@ -1479,15 +1599,28 @@ def project_execution_page():
         
         # Show execution info
         st.divider()
-        info_cols = st.columns(4)
+        info_cols = st.columns(5)
         with info_cols[0]:
             st.metric("⏱️ Duration", format_time(metadata.get('elapsed_time', 0)))
         with info_cols[1]:
             st.metric("🎯 Process", metadata.get('process_type', 'N/A'))
         with info_cols[2]:
-            st.metric("📅 Executed", metadata.get('timestamp', 'N/A'))
+            st.metric("🚀 Platform", metadata.get('platform', 'N/A').split(' ')[0])
         with info_cols[3]:
+            st.metric("📅 Executed", metadata.get('timestamp', 'N/A'))
+        with info_cols[4]:
             st.metric("📁 Files Used", metadata.get('num_files', 0))
+        
+        # Show deliverables checkboxes
+        delivs = metadata.get('deliverables', {})
+        if delivs:
+            deliv_info = []
+            if delivs.get('code'): deliv_info.append("✅ Code")
+            if delivs.get('deployment'): deliv_info.append("📋 Deploy")
+            if delivs.get('docs'): deliv_info.append("📚 Docs")
+            if delivs.get('tests'): deliv_info.append("🧪 Tests")
+            if deliv_info:
+                st.caption(f"**Requested:** {' • '.join(deliv_info)}")
         
         st.subheader("📄 Final Report")
         
