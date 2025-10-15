@@ -1,6 +1,6 @@
 # app.py
 # ──────────────────────────────────────────────────────────────────────────────
-# AI Factory — Streamlit + CrewAI starter app
+# AI Factory — Streamlit + CrewAI app (Full Dark Mode Redesign)
 # Requirements:
 #   - streamlit
 #   - crewai
@@ -12,6 +12,9 @@
 #   In .streamlit/secrets.toml set:
 #       OPENAI_API_KEY = "sk-...."
 #   We DO NOT hardcode any keys in this file.
+# THEME NOTE:
+#   Streamlit's official theming is handled via .streamlit/config.toml.
+#   Here we emulate a full dark theme using CSS injection for an immediate result.
 # ──────────────────────────────────────────────────────────────────────────────
 
 import json
@@ -21,24 +24,208 @@ from typing import List, Dict, Any
 from uuid import uuid4
 
 import streamlit as st
-
-# CrewAI imports (kept minimal and version-friendly)
 from crewai import Agent, Task, Crew, Process
 
 # ------------------------------------------------------------------------------
 # App & Security Setup
 # ------------------------------------------------------------------------------
-st.set_page_config(page_title="AI Factory", page_icon="🏭", layout="wide")
+st.set_page_config(
+    page_title="AI Factory",
+    page_icon="🏭",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 
 # Ensure API key comes from Streamlit secrets; never hard-code.
 OPENAI_KEY = st.secrets.get("OPENAI_API_KEY", "")
 if not OPENAI_KEY:
     st.warning(
         "🔐 OpenAI API key not found in Streamlit secrets. "
-        "Add it to `.streamlit/secrets.toml` as `OPENAI_API_KEY = \"...\"`."
+        'Add it to `.streamlit/secrets.toml` as: OPENAI_API_KEY = "<your key>".'
     )
-# CrewAI and the OpenAI SDK pick up the key from environment variables
+# CrewAI / OpenAI SDKs pick up the key from environment variables
 os.environ["OPENAI_API_KEY"] = OPENAI_KEY
+
+# ------------------------------------------------------------------------------
+# Dark Mode CSS Injection (palette, fonts, components)
+# ------------------------------------------------------------------------------
+DARK_CSS = """
+<style>
+/* Google Font */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+
+/* Color System */
+:root {
+  --bg: #1E1E1E;
+  --surface: #2D2D2D;
+  --surface-2: #242424;
+  --border: #3A3A3A;
+  --accent: #7C5CFF;      /* Vibrant purple accent */
+  --accent-hover: #6B4CFA;
+  --text: #EAEAEA;        /* Primary text */
+  --text-muted: #BDBDBD;  /* Secondary text */
+  --success: #22c55e;
+  --error: #ef4444;
+  --warning: #f59e0b;
+}
+
+/* Base App */
+html, body, [data-testid="stAppViewContainer"], .stApp {
+  background-color: var(--bg) !important;
+  color: var(--text) !important;
+  font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji" !important;
+}
+
+/* Header */
+[data-testid="stHeader"] {
+  background: linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0)) !important;
+  color: var(--text) !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+
+/* Sidebar */
+[data-testid="stSidebar"] {
+  background-color: var(--surface) !important;
+  color: var(--text) !important;
+  border-right: 1px solid var(--border) !important;
+}
+[data-testid="stSidebar"] * {
+  color: var(--text) !important;
+}
+
+/* Cards, containers, expanders */
+.block-container, .stTabs, .stDataFrame, .stMarkdown, .stMetric {
+  color: var(--text) !important;
+}
+div[data-testid="stExpander"] {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 14px !important;
+}
+div[data-testid="stExpander"] > details > summary {
+  background: var(--surface-2) !important;
+  border-bottom: 1px solid var(--border) !important;
+  padding: 12px 14px !important;
+  font-weight: 600 !important;
+  color: var(--text) !important;
+}
+div[data-testid="stExpander"] p,
+div[data-testid="stExpander"] .stMarkdown {
+  color: var(--text) !important;
+}
+
+/* Inputs */
+textarea, input[type="text"], input[type="search"], input[type="email"], input[type="password"] {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 12px !important;
+}
+textarea::placeholder, input::placeholder {
+  color: var(--text-muted) !important;
+}
+
+/* Selects and combos */
+div[data-baseweb="select"] > div {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+  color: var(--text) !important;
+  border-radius: 12px !important;
+}
+div[data-baseweb="select"] svg {
+  fill: var(--text-muted) !important;
+}
+
+/* Buttons */
+.stButton > button, button[kind="secondary"] {
+  background: var(--accent) !important;
+  color: #ffffff !important;
+  border: 1px solid transparent !important;
+  padding: 0.6rem 1rem !important;
+  border-radius: 12px !important;
+  font-weight: 600 !important;
+  transition: all .15s ease-in-out;
+}
+.stButton > button:hover, button[kind="secondary"]:hover {
+  background: var(--accent-hover) !important;
+  transform: translateY(-1px);
+}
+.stButton > button:focus {
+  outline: 2px solid var(--accent-hover) !important;
+}
+
+/* Primary and secondary base buttons (newer Streamlit) */
+button[data-testid="baseButton-primary"] {
+  background: var(--accent) !important;
+  color: #fff !important;
+  border: 1px solid transparent !important;
+  border-radius: 12px !important;
+}
+button[data-testid="baseButton-secondary"] {
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 12px !important;
+}
+button[data-testid="baseButton-primary"]:hover {
+  background: var(--accent-hover) !important;
+}
+
+/* Alerts */
+div[data-testid="stAlert"] {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 12px !important;
+  color: var(--text) !important;
+}
+
+/* Code blocks & markdown text */
+code, pre {
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+  border-radius: 10px !important;
+}
+
+/* Spinners */
+div[data-testid="stSpinner"] {
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+  border-radius: 12px !important;
+  padding: 0.75rem 1rem !important;
+  border: 1px solid var(--border) !important;
+}
+
+/* Dividers, hr, borders */
+hr, .stDivider {
+  border-color: var(--border) !important;
+}
+
+/* Headings & text */
+h1, h2, h3, h4, h5, h6, label, p, li, span {
+  color: var(--text) !important;
+}
+
+/* Scrollbars (WebKit) */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+*::-webkit-scrollbar-thumb {
+  background-color: var(--surface-2);
+  border-radius: 10px;
+  border: 2px solid var(--bg);
+}
+
+/* Text area sizing for nicer look */
+textarea {
+  line-height: 1.45 !important;
+}
+</style>
+"""
+st.markdown(DARK_CSS, unsafe_allow_html=True)
 
 # ------------------------------------------------------------------------------
 # Constants & Storage Helpers
@@ -57,7 +244,6 @@ def load_agents() -> List[Dict[str, Any]]:
         data = json.loads(AGENTS_FILE.read_text(encoding="utf-8"))
         if isinstance(data, list):
             return data
-        # Fallback to empty list if structure is wrong
         return []
     except Exception:
         return []
@@ -158,17 +344,17 @@ def agent_management_page():
         st.info("No agents saved yet. Use the form above to add your first agent.")
         return
 
-    # List agents with delete buttons
+    # Collapsible display of agents with clear bold labels
     for a in agents:
-        with st.expander(f"🧩 {a.get('role', 'Unknown Role')}"):
-            st.write(f"**Goal:** {a.get('goal','')}")
-            st.write(f"**Backstory:** {a.get('backstory','')}")
-            st.write(f"**Allow Delegation:** {'Yes' if a.get('allow_delegation') else 'No'}")
+        with st.expander(f"🧩 {a.get('role', 'Unknown Role')}", expanded=False):
+            st.markdown(f"**Goal:** {a.get('goal','')}")
+            st.markdown(f"**Backstory:** {a.get('backstory','')}")
+            st.markdown(f"**Allow Delegation:** {'Yes' if a.get('allow_delegation') else 'No'}")
             cols = st.columns(2)
             with cols[0]:
                 if st.button("🗑️ Delete", key=f"del_{a['id']}"):
                     delete_agent(a["id"])
-                    st.rerun()
+                    st.experimental_rerun()
 
 # ------------------------------------------------------------------------------
 # Helper: Instantiate CrewAI Agents from stored profiles
@@ -180,7 +366,6 @@ def build_crewai_agent(profile: Dict[str, Any]) -> Agent:
     We pass `allow_delegation` through and specify a model name.
     CrewAI will read the OpenAI key from the environment.
     """
-    # Pick a sensible default model (change if you prefer another)
     default_model = "gpt-4o-mini"
 
     return Agent(
@@ -188,8 +373,8 @@ def build_crewai_agent(profile: Dict[str, Any]) -> Agent:
         goal=profile.get("goal", ""),
         backstory=profile.get("backstory", ""),
         allow_delegation=bool(profile.get("allow_delegation", True)),
-        model=default_model,           # CrewAI will route this to OpenAI
-        verbose=True,                  # Helpful while you're getting started
+        model=default_model,
+        verbose=True,
     )
 
 # ------------------------------------------------------------------------------
@@ -209,7 +394,9 @@ def project_execution_page():
     )
 
     st.divider()
-    colL, colR = st.columns([1, 1])
+
+    # Two neat side-by-side columns: Agents Loaded (left) and Settings (right)
+    colL, colR = st.columns([1, 1], gap="large")
     with colL:
         st.subheader("👥 Agents Loaded")
         agents = load_agents()
@@ -248,8 +435,6 @@ def project_execution_page():
         # Convert profiles to CrewAI Agent instances
         try:
             crew_agents: List[Agent] = [build_crewai_agent(p) for p in saved_agents]
-            # Orchestrator will naturally lead with hierarchical process if present.
-            # (CrewAI internally coordinates based on process=Process.hierarchical)
         except Exception as e:
             st.error(f"Failed to initialize agents: {e}")
             return
@@ -272,11 +457,10 @@ def project_execution_page():
                 "(4) final recommendations or artifacts, and "
                 "(5) clear next steps."
             ),
-            agent=build_crewai_agent(orchestrator_profile),  # Assign the task explicitly to the Orchestrator
+            agent=build_crewai_agent(orchestrator_profile),
         )
 
-        # Assemble the crew
-        crew_process = Process.hierarchical  # future extension point if you add more process types
+        crew_process = Process.hierarchical
         crew = Crew(
             agents=crew_agents,
             tasks=[orchestrator_task],
@@ -293,6 +477,7 @@ def project_execution_page():
                 return
 
         st.success("✅ Crew execution complete!")
+        st.subheader("📄 Final Report")  # Added section title for final output
         # CrewAI often returns a rich object or a string; handle both
         if hasattr(result, "raw") and isinstance(result.raw, str):
             st.markdown(result.raw)
