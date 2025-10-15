@@ -20,6 +20,9 @@
 import json
 import os
 import time
+import re
+import zipfile
+import io
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any
@@ -871,6 +874,52 @@ def build_context_from_files(files_data: List[Dict[str, Any]]) -> str:
     
     return ''.join(context_parts)
 
+def extract_code_files_from_result(result_text: str) -> Dict[str, str]:
+    """Extract code files from markdown result."""
+    files = {}
+    
+    # Pattern to match: ### File: filename.ext followed by ```language ... ```
+    pattern = r'###\s+File:\s+([^\n]+)\n\s*```(\w+)?\n(.*?)```'
+    matches = re.finditer(pattern, result_text, re.DOTALL)
+    
+    for match in matches:
+        filename = match.group(1).strip()
+        content = match.group(3).strip()
+        files[filename] = content
+    
+    return files
+
+def create_project_zip(files: Dict[str, str], project_name: str = "project") -> bytes:
+    """Create a ZIP file from extracted code files."""
+    zip_buffer = io.BytesIO()
+    
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        for filepath, content in files.items():
+            zip_file.writestr(filepath, content)
+    
+    zip_buffer.seek(0)
+    return zip_buffer.getvalue()
+
+def write_files_to_directory(files: Dict[str, str], base_path: str) -> tuple:
+    """Write extracted files to a local directory."""
+    try:
+        base_dir = Path(base_path)
+        base_dir.mkdir(parents=True, exist_ok=True)
+        
+        written_files = []
+        for filepath, content in files.items():
+            full_path = base_dir / filepath
+            full_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            with open(full_path, 'w', encoding='utf-8') as f:
+                f.write(content)
+            
+            written_files.append(str(full_path))
+        
+        return True, written_files
+    except Exception as e:
+        return False, str(e)
+
 # ------------------------------------------------------------------------------
 # Deployment Helper Functions
 # ------------------------------------------------------------------------------
@@ -1539,12 +1588,23 @@ def project_execution_page():
             if st.session_state.user_selections and st.session_state.user_selections.get('tech'):
                 sels = st.session_state.user_selections
                 user_selections_context = (
-                    "\n\n🎯 USER'S SELECTED PREFERENCES (from consultation):\n"
-                    f"- Technology Stack: {sels.get('tech', 'Not specified')}\n"
-                    f"- Deployment Platform: {sels.get('platform', 'As recommended')}\n"
-                    f"- Additional Requirements: {sels.get('additional', 'None')}\n\n"
-                    "⚠️ CRITICAL: Build the project using THESE user-selected preferences!\n"
-                    "Use the selected tech stack and platform. Do NOT suggest alternatives.\n"
+                    "\n\n" + "="*80 + "\n"
+                    "🎯 USER'S SELECTED PREFERENCES (MUST BE FOLLOWED)\n"
+                    "="*80 + "\n"
+                    f"Technology Stack: {sels.get('tech', 'Not specified')}\n"
+                    f"Deployment Platform: {sels.get('platform', 'As recommended')}\n"
+                    f"Additional Requirements: {sels.get('additional', 'None')}\n"
+                    "="*80 + "\n\n"
+                    "⚠️⚠️⚠️ CRITICAL REQUIREMENT ⚠️⚠️⚠️\n"
+                    "You MUST use the technology stack the user selected above.\n"
+                    "If user selected 'Option A: MEAN Stack' → Use MongoDB, Express, React, Node.js\n"
+                    "If user selected 'Option B: Python Flask' → Use Python, Flask\n"
+                    "If user selected 'Option C: Vue + Firebase' → Use Vue.js, Firebase\n\n"
+                    "DO NOT use Python/Pandas/Jupyter/ML libraries unless that's what the user selected!\n"
+                    "DO NOT ignore the user's selection!\n"
+                    "DO NOT substitute with a different tech stack!\n\n"
+                    "The user already made their choice. Your job is to implement THAT choice.\n"
+                    "="*80 + "\n\n"
                 )
             
             # Build deliverables requirements
@@ -1608,28 +1668,37 @@ def project_execution_page():
                 "## Next Steps\n"
                 "[What to do after getting these files]"
             )
+            # Build tech-specific expected output
+            if st.session_state.user_selections.get('tech'):
+                tech_hint = f"\n\nREMINDER: User selected {st.session_state.user_selections.get('tech')}. All code MUST match this selection!"
+            else:
+                tech_hint = ""
+            
             tasks.append(Task(
                 description=task_description,
                 expected_output=(
-                    "Complete source code files and deployment artifacts presented in this exact format:\n\n"
+                    "Complete source code files and deployment artifacts in this format:\n\n"
                     "## Project Overview\n"
                     "[2-3 sentence description]\n\n"
-                    "## Tech Stack\n"
-                    "[List of technologies used]\n\n"
+                    "## Tech Stack Used\n"
+                    "[MUST match user's selected option]\n\n"
                     "## Source Code Files\n\n"
-                    "### File: package.json\n"
-                    "```json\n"
+                    "### File: [appropriate config file for tech stack]\n"
+                    "```[language]\n"
                     "[COMPLETE file contents]\n"
                     "```\n\n"
-                    "### File: src/App.js\n"
-                    "```javascript\n"
-                    "[COMPLETE React component code]\n"
+                    "### File: [main application files]\n"
+                    "```[language]\n"
+                    "[COMPLETE working code]\n"
                     "```\n\n"
-                    "[Continue for ALL files needed]\n\n"
+                    "[Include ALL necessary files for the SELECTED tech stack]\n\n"
+                    "## Git Setup\n"
+                    "[.gitignore and Git commands]\n\n"
                     "## Deployment Instructions\n"
                     f"[Step-by-step guide for {selected_platform}]\n\n"
                     "## Setup & Run\n"
                     "[Commands to install and run locally]"
+                    f"{tech_hint}"
                 ),
                 agent=build_crewai_agent(orchestrator_profile),
             ))
@@ -1902,24 +1971,68 @@ def project_execution_page():
             # Add export button with full content
             report_text = str(main_output)
             
-            # Create downloadable versions
-            col_dl1, col_dl2 = st.columns(2)
+            # Extract code files from result
+            code_files = extract_code_files_from_result(report_text)
+            
+            st.subheader("💾 Export Options")
+            
+            # Download buttons
+            col_dl1, col_dl2, col_dl3 = st.columns(3)
             with col_dl1:
                 st.download_button(
-                    label="📥 Download Report (Markdown)",
+                    label="📄 Download Report (MD)",
                     data=report_text,
                     file_name=f"ai_factory_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
                     mime="text/markdown",
                     use_container_width=True,
                 )
             with col_dl2:
+                if code_files:
+                    project_name = metadata.get('idea', 'project')[:30].replace(' ', '_')
+                    zip_data = create_project_zip(code_files, project_name)
+                    st.download_button(
+                        label=f"📦 Download ZIP ({len(code_files)} files)",
+                        data=zip_data,
+                        file_name=f"{project_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip",
+                        mime="application/zip",
+                        use_container_width=True,
+                    )
+                else:
+                    st.button("📦 No Files Detected", disabled=True, use_container_width=True)
+            
+            with col_dl3:
                 st.download_button(
-                    label="📄 Download Report (Text)",
+                    label="📝 Download Text",
                     data=report_text,
                     file_name=f"ai_factory_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
                     mime="text/plain",
                     use_container_width=True,
                 )
+            
+            # Local folder save option
+            if code_files:
+                st.divider()
+                st.caption("💻 **Save to Local Folder** (optional - works only when running locally)")
+                
+                col_path, col_save = st.columns([3, 1])
+                with col_path:
+                    folder_path = st.text_input(
+                        "Folder Path",
+                        placeholder="e.g., C:\\Projects\\my-app or /Users/name/projects/my-app",
+                        help="Absolute path where project files should be saved",
+                        label_visibility="collapsed"
+                    )
+                
+                with col_save:
+                    if st.button("💾 Save Files", disabled=not folder_path, use_container_width=True):
+                        success, result_data = write_files_to_directory(code_files, folder_path)
+                        if success:
+                            st.success(f"✅ Saved {len(result_data)} files to {folder_path}!")
+                            with st.expander("📁 Files created"):
+                                for file in result_data:
+                                    st.code(file)
+                        else:
+                            st.error(f"❌ Failed to save files: {result_data}")
         else:
             # If main output is short/empty, check task outputs
             if not isinstance(result, str) and hasattr(result, 'tasks_output') and result.tasks_output:
@@ -2003,30 +2116,35 @@ def project_execution_page():
         st.subheader("💡 Recommended Platforms")
         st.caption("Based on your project's technology stack and requirements")
         
-        # Display platform options in clean cards
+        # Display platform options in consistent, compact cards
         for idx, platform in enumerate(project_analysis["platforms"]):
             with st.container():
-                # Use fixed column ratios for consistency
-                col_platform, col_cost, col_diff = st.columns([4, 2, 2])
+                col_platform, col_info = st.columns([5, 3])
                 
                 with col_platform:
-                    st.markdown(f"**{platform['name']}**")
+                    # Platform name with top pick badge
+                    if idx == 0:
+                        st.markdown(f"**{platform['name']}** ⭐ _Top Pick_")
+                    else:
+                        st.markdown(f"**{platform['name']}**")
+                    
                     st.caption(f"{platform['best_for']}")
                     
-                    # Compact pros/cons
+                    # Compact pros/cons on same line
                     pros_text = " • ".join(platform["pros"][:2])
                     cons_text = " • ".join(platform["cons"][:1])
-                    st.markdown(f"✅ {pros_text}")
+                    st.caption(f"✅ {pros_text}")
                     if cons_text:
-                        st.markdown(f"⚠️ {cons_text}")
+                        st.caption(f"⚠️ {cons_text}")
                 
-                with col_cost:
-                    st.metric("💰 Cost", platform["cost"], help=platform["tier_details"])
-                
-                with col_diff:
-                    st.metric("📊 Level", platform["difficulty"].replace(" ⭐", ""))
-                    if idx == 0:
-                        st.success("Top Pick")
+                with col_info:
+                    # Compact info display without large metric cards
+                    st.caption("**Cost**")
+                    st.write(f"{platform['cost']}")
+                    st.caption(f"_{platform['tier_details']}_")
+                    
+                    st.caption("**Difficulty**")
+                    st.write(f"{platform['difficulty']}")
                 
                 st.divider()
         
