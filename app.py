@@ -1258,25 +1258,6 @@ def project_execution_page():
             with cols[idx % 3]:
                 st.info(f"{parsed['icon']} **{parsed['name']}**\n\n{parsed['type']}")
     
-    # Launch button right below the file upload for better UX
-    col1, col2, col3 = st.columns([2, 1, 2])
-    with col2:
-        launch = st.button(
-            "🚀 Launch Crew",
-            type="primary",
-            use_container_width=True,
-            disabled=not bool(idea.strip()),
-            help="Click to start the crew with your project idea" if idea.strip() else "Enter a project idea to enable"
-        )
-    
-    # Clear results button
-    if st.session_state.execution_result is not None:
-        with col3:
-            if st.button("🗑️ Clear Results", help="Clear previous execution results"):
-                st.session_state.execution_result = None
-                st.session_state.execution_metadata = {}
-                st.rerun()
-
     st.divider()
 
     # Two neat side-by-side columns: Agents Loaded (left) and Settings (right)
@@ -1307,6 +1288,28 @@ def project_execution_page():
             "Consensus": "🤝 **Collaborative**: Agents work together and reach consensus on the best approach."
         }
         st.info(process_descriptions[process_type])
+    
+    st.divider()
+    
+    # Launch button after settings for better workflow
+    col1, col2, col3 = st.columns([2, 1, 2])
+    with col2:
+        launch = st.button(
+            "🚀 Launch Crew",
+            type="primary",
+            use_container_width=True,
+            disabled=not bool(idea.strip()),
+            help="Click to start the crew with your project idea" if idea.strip() else "Enter a project idea to enable"
+        )
+    
+    # Clear results button
+    if st.session_state.execution_result is not None:
+        with col3:
+            if st.button("🗑️ Clear Results", help="Clear previous execution results"):
+                st.session_state.execution_result = None
+                st.session_state.execution_metadata = {}
+                st.rerun()
+    
     if launch:
         if not OPENAI_KEY:
             st.error("OpenAI API key missing. Add it to `.streamlit/secrets.toml` and reload the app.")
@@ -1399,12 +1402,25 @@ def project_execution_page():
             tasks.append(Task(
                 description=task_description,
                 expected_output=(
-                    "A comprehensive final deliverable that includes: "
-                    "(1) a concise project summary, "
-                    "(2) a prioritized plan with milestones, "
-                    "(3) delegated tasks and outcomes, "
-                    "(4) final recommendations or artifacts, and "
-                    "(5) clear next steps."
+                    "Complete source code files and deployment artifacts presented in this exact format:\n\n"
+                    "## Project Overview\n"
+                    "[2-3 sentence description]\n\n"
+                    "## Tech Stack\n"
+                    "[List of technologies used]\n\n"
+                    "## Source Code Files\n\n"
+                    "### File: package.json\n"
+                    "```json\n"
+                    "[COMPLETE file contents]\n"
+                    "```\n\n"
+                    "### File: src/App.js\n"
+                    "```javascript\n"
+                    "[COMPLETE React component code]\n"
+                    "```\n\n"
+                    "[Continue for ALL files needed]\n\n"
+                    "## Deployment Instructions\n"
+                    f"[Step-by-step guide for {selected_platform}]\n\n"
+                    "## Setup & Run\n"
+                    "[Commands to install and run locally]"
                 ),
                 agent=build_crewai_agent(orchestrator_profile),
             ))
@@ -1443,7 +1459,11 @@ def project_execution_page():
                 )
                 tasks.append(Task(
                     description=task_desc,
-                    expected_output=f"Detailed analysis and contribution from the {agent_profile.get('role', 'Agent')} perspective.",
+                    expected_output=(
+                        f"Concrete code files and configurations from {agent_profile.get('role', 'Agent')}. "
+                        "Must include actual source code in properly formatted code blocks with filenames, "
+                        "NOT descriptions or plans. Format: ### File: filename.ext\n```language\n[code]\n```"
+                    ),
                     agent=build_crewai_agent(agent_profile),
                 ))
                 
@@ -1479,7 +1499,11 @@ def project_execution_page():
                 )
                 tasks.append(Task(
                     description=task_desc,
-                    expected_output=f"Collaborative contribution from {agent_profile.get('role', 'Agent')} that builds consensus.",
+                    expected_output=(
+                        f"Working code files from {agent_profile.get('role', 'Agent')} contributing to consensus. "
+                        "Must provide actual source code in code blocks with filenames, NOT analysis or recommendations. "
+                        "Format: ### File: filename.ext\n```language\n[complete code]\n```"
+                    ),
                     agent=build_crewai_agent(agent_profile),
                 ))
 
