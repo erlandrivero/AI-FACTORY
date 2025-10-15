@@ -387,6 +387,186 @@ textarea {
 [data-testid="stFileUploader"] li div {
   color: var(--text) !important;
 }
+
+/* Metrics (st.metric) */
+[data-testid="stMetric"] {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 10px !important;
+  padding: 0.75rem !important;
+}
+[data-testid="stMetricLabel"],
+[data-testid="stMetric"] label {
+  color: var(--text-muted) !important;
+}
+[data-testid="stMetricValue"],
+[data-testid="stMetric"] [data-testid="stMarkdownContainer"] {
+  color: var(--text) !important;
+}
+[data-testid="stMetricDelta"] {
+  color: var(--text) !important;
+}
+
+/* Download buttons */
+.stDownloadButton > button {
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 10px !important;
+}
+.stDownloadButton > button:hover {
+  background: var(--surface) !important;
+  border-color: var(--accent) !important;
+}
+
+/* Radio buttons and checkboxes */
+.stRadio label,
+.stCheckbox label {
+  color: var(--text) !important;
+}
+.stRadio > div,
+.stCheckbox > div {
+  color: var(--text) !important;
+}
+
+/* Columns */
+[data-testid="column"] {
+  color: var(--text) !important;
+}
+
+/* Info, success, warning, error messages */
+.stInfo, [data-testid="stInfo"] {
+  background-color: rgba(124, 92, 255, 0.1) !important;
+  border-left: 4px solid var(--accent) !important;
+  color: var(--text) !important;
+}
+.stSuccess, [data-testid="stSuccess"] {
+  background-color: rgba(34, 197, 94, 0.1) !important;
+  border-left: 4px solid var(--success) !important;
+  color: var(--text) !important;
+}
+.stWarning, [data-testid="stWarning"] {
+  background-color: rgba(245, 158, 11, 0.1) !important;
+  border-left: 4px solid var(--warning) !important;
+  color: var(--text) !important;
+}
+.stError, [data-testid="stError"] {
+  background-color: rgba(239, 68, 68, 0.1) !important;
+  border-left: 4px solid var(--error) !important;
+  color: var(--text) !important;
+}
+
+/* Progress bars */
+.stProgress > div > div > div {
+  background-color: var(--accent) !important;
+}
+[data-testid="stProgressBar"] {
+  background-color: var(--surface-2) !important;
+}
+
+/* Tabs */
+.stTabs [data-baseweb="tab-list"] {
+  background-color: var(--surface) !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+.stTabs [data-baseweb="tab"] {
+  color: var(--text-muted) !important;
+  background-color: transparent !important;
+}
+.stTabs [aria-selected="true"] {
+  color: var(--accent) !important;
+  border-bottom-color: var(--accent) !important;
+}
+.stTabs [data-baseweb="tab-panel"] {
+  background-color: var(--surface) !important;
+  color: var(--text) !important;
+  padding: 1rem !important;
+  border-radius: 0 0 10px 10px !important;
+}
+
+/* Links */
+a, a:visited {
+  color: var(--accent) !important;
+}
+a:hover {
+  color: var(--accent-hover) !important;
+  text-decoration: underline !important;
+}
+
+/* Markdown elements */
+.stMarkdown a {
+  color: var(--accent) !important;
+}
+.stMarkdown code {
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+  padding: 2px 6px !important;
+  border-radius: 4px !important;
+}
+.stMarkdown pre {
+  background: var(--surface-2) !important;
+  border: 1px solid var(--border) !important;
+  padding: 1rem !important;
+}
+.stMarkdown blockquote {
+  border-left: 4px solid var(--accent) !important;
+  padding-left: 1rem !important;
+  color: var(--text-muted) !important;
+}
+.stMarkdown table {
+  color: var(--text) !important;
+}
+.stMarkdown th {
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+}
+.stMarkdown td {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+}
+
+/* DataFrames and Tables */
+.stDataFrame, [data-testid="stDataFrame"] {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+}
+.stDataFrame table {
+  color: var(--text) !important;
+}
+.stDataFrame th {
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+}
+.stDataFrame td {
+  color: var(--text) !important;
+}
+
+/* JSON display */
+.stJson {
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 10px !important;
+}
+
+/* Ensure all text is visible */
+div, span, p, label, li {
+  color: var(--text) !important;
+}
+
+/* Fix any potential white-on-white or black-on-black */
+[style*="color: rgb(0, 0, 0)"],
+[style*="color: #000"],
+[style*="color: black"] {
+  color: var(--text) !important;
+}
+[style*="color: rgb(255, 255, 255)"],
+[style*="color: #fff"],
+[style*="color: white"] {
+  color: var(--text) !important;
+}
 </style>
 """
 st.markdown(DARK_CSS, unsafe_allow_html=True)
