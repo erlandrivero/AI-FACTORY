@@ -486,23 +486,86 @@ def project_execution_page():
             manager_agent=build_crewai_agent(orchestrator_profile),
         )
 
-        # Run with time tracking and visual feedback
+        # Run with animated progress and live time tracking
         start_time = time.time()
-        progress_placeholder = st.empty()
         
-        with progress_placeholder:
-            with st.spinner("🧪 The crew is working..."):
-                st.info("⚙️ **Status:** Orchestrator analyzing, delegating, and coordinating agents...")
+        # Create placeholders for dynamic updates
+        progress_container = st.container()
+        with progress_container:
+            st.markdown("### 🚀 Crew Execution in Progress")
+            progress_bar = st.progress(0, text="Initializing crew...")
+            status_text = st.empty()
+            time_display = st.empty()
+        
+        # Status messages for animation
+        status_messages = [
+            "🔍 Orchestrator analyzing project requirements...",
+            "📋 Breaking down project into manageable tasks...",
+            "🤝 Delegating work to specialized agents...",
+            "⚙️ Agents processing their assignments...",
+            "🔄 Coordinating agent outputs...",
+            "✨ Synthesizing final deliverable...",
+        ]
+        
+        # Start the crew execution and show animated progress
+        try:
+            import threading
+            result_container = {"result": None, "error": None, "completed": False}
+            
+            # Run crew in separate thread to allow UI updates
+            def run_crew():
                 try:
-                    result = crew.kickoff()
+                    result_container["result"] = crew.kickoff()
                 except Exception as e:
-                    st.error(f"❌ Crew execution failed: {e}")
-                    return
+                    result_container["error"] = e
+                finally:
+                    result_container["completed"] = True
+            
+            thread = threading.Thread(target=run_crew)
+            thread.start()
+            
+            # Animate progress while crew is working
+            progress = 0
+            msg_index = 0
+            while not result_container["completed"]:
+                elapsed = int(time.time() - start_time)
+                
+                # Update progress bar (smoothly increase)
+                progress = min(90, progress + 2)  # Cap at 90% until complete
+                progress_bar.progress(progress, text=status_messages[msg_index % len(status_messages)])
+                
+                # Update status and time
+                status_text.info(f"⏱️ **Elapsed Time:** {elapsed} seconds")
+                
+                # Rotate through messages
+                if elapsed % 3 == 0 and elapsed > 0:
+                    msg_index += 1
+                
+                time.sleep(0.5)
+            
+            thread.join()
+            
+            # Check for errors
+            if result_container["error"]:
+                progress_container.empty()
+                st.error(f"❌ Crew execution failed: {result_container['error']}")
+                return
+            
+            result = result_container["result"]
+            
+            # Complete progress
+            progress_bar.progress(100, text="✅ Complete!")
+            elapsed_time = int(time.time() - start_time)
+            time_display.success(f"🎉 **Completed in {elapsed_time} seconds!**")
+            time.sleep(1.5)
+            progress_container.empty()
+            
+        except Exception as e:
+            progress_container.empty()
+            st.error(f"❌ Crew execution failed: {e}")
+            return
         
-        # Show completion time
-        elapsed_time = int(time.time() - start_time)
-        progress_placeholder.empty()
-        st.success(f"✅ Crew execution complete! (Completed in {elapsed_time} seconds)")
+        st.success(f"✅ Crew execution complete! (Total time: {elapsed_time}s)")
         
         st.subheader("📄 Final Report")
         
