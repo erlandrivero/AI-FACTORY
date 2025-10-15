@@ -1,5 +1,22 @@
-streamlit>=1.31.0
-crewai>=0.11.0
-crewai-tools>=0.0.5
-openai>=1.11.0
-python-dotenv>=1.0.0
+# Core app framework
+streamlit==1.39.0
+
+# CrewAI and tools (locked to stable versions)
+crewai==0.28.8
+crewai-tools==0.1.6
+
+# Pydantic - locked to v2 compatible version
+pydantic==2.8.2
+pydantic-core==2.20.1
+
+# LangChain dependencies (required by CrewAI)
+langchain==0.1.20
+langchain-community==0.0.38
+langchain-openai==0.1.7
+langchain-core==0.1.52
+
+# OpenAI
+openai==1.35.13
+
+# Additional utilities
+python-dotenv==1.0.1
