@@ -365,7 +365,26 @@ textarea {
 }
 [data-testid="stFileUploader"] small,
 [data-testid="stFileUploader"] label,
-[data-testid="stFileUploader"] p {
+[data-testid="stFileUploader"] p,
+[data-testid="stFileUploader"] span {
+  color: var(--text) !important;
+}
+/* Uploaded file list */
+[data-testid="stFileUploader"] ul {
+  background: var(--surface-2) !important;
+  padding: 0.5rem !important;
+  border-radius: 8px !important;
+}
+[data-testid="stFileUploader"] li {
+  color: var(--text) !important;
+  background: var(--surface) !important;
+  padding: 0.5rem !important;
+  margin: 0.25rem 0 !important;
+  border-radius: 6px !important;
+  border: 1px solid var(--border) !important;
+}
+[data-testid="stFileUploader"] li span,
+[data-testid="stFileUploader"] li div {
   color: var(--text) !important;
 }
 </style>
@@ -985,6 +1004,12 @@ def project_execution_page():
     st.header("🚀 Project Execution")
     st.write("Describe your project idea and launch your crew.")
 
+    # Initialize session state for results
+    if 'execution_result' not in st.session_state:
+        st.session_state.execution_result = None
+    if 'execution_metadata' not in st.session_state:
+        st.session_state.execution_metadata = {}
+
     idea = st.text_area(
         "Project Idea",
         height=220,
@@ -1029,6 +1054,14 @@ def project_execution_page():
             disabled=not bool(idea.strip()),
             help="Click to start the crew with your project idea" if idea.strip() else "Enter a project idea to enable"
         )
+    
+    # Clear results button
+    if st.session_state.execution_result is not None:
+        with col3:
+            if st.button("🗑️ Clear Results", help="Clear previous execution results"):
+                st.session_state.execution_result = None
+                st.session_state.execution_metadata = {}
+                st.rerun()
 
     st.divider()
 
@@ -1244,34 +1277,88 @@ def project_execution_page():
             time.sleep(1.5)
             progress_container.empty()
             
+            # Store results in session state
+            st.session_state.execution_result = result
+            st.session_state.execution_metadata = {
+                'elapsed_time': elapsed_time,
+                'process_type': process_type,
+                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'idea': idea.strip(),
+                'num_files': len(files_data)
+            }
+            
         except Exception as e:
             progress_container.empty()
             st.error(f"❌ Crew execution failed: {e}")
             return
+    
+    # Display results (either from current execution or previous session state)
+    if st.session_state.execution_result is not None:
+        result = st.session_state.execution_result
+        metadata = st.session_state.execution_metadata
+        
+        # Show execution info
+        st.divider()
+        info_cols = st.columns(4)
+        with info_cols[0]:
+            st.metric("⏱️ Duration", format_time(metadata.get('elapsed_time', 0)))
+        with info_cols[1]:
+            st.metric("🎯 Process", metadata.get('process_type', 'N/A'))
+        with info_cols[2]:
+            st.metric("📅 Executed", metadata.get('timestamp', 'N/A'))
+        with info_cols[3]:
+            st.metric("📁 Files Used", metadata.get('num_files', 0))
         
         st.subheader("📄 Final Report")
+        
+        # Debug: Show result type
+        with st.expander("🔍 Debug Info", expanded=False):
+            st.write(f"**Result Type:** {type(result)}")
+            st.write(f"**Result Attributes:** {dir(result) if not isinstance(result, str) else 'N/A'}")
         
         # Handle different result types from CrewAI
         if isinstance(result, str):
             # Simple string result
             st.markdown(result)
+            main_output = result
         else:
             # CrewOutput object (newer CrewAI versions)
-            # Try to get the main output first
+            # Try to get the main output in order of preference
             main_output = None
-            if hasattr(result, 'raw') and result.raw:
-                main_output = result.raw
-            elif hasattr(result, 'output') and result.output:
-                main_output = result.output
-            elif hasattr(result, 'pydantic') and hasattr(result.pydantic, 'raw'):
-                main_output = result.pydantic.raw
             
-            # Display the main output prominently
-            if main_output and len(str(main_output).strip()) > 50:
-                st.markdown(main_output)
-                
-                # Add export button
-                report_text = str(main_output)
+            # Try different attributes to extract content
+            if hasattr(result, 'raw'):
+                main_output = str(result.raw) if result.raw else None
+            
+            if not main_output and hasattr(result, 'output'):
+                main_output = str(result.output) if result.output else None
+            
+            if not main_output and hasattr(result, 'json'):
+                try:
+                    main_output = str(result.json) if result.json else None
+                except:
+                    pass
+            
+            if not main_output and hasattr(result, 'pydantic'):
+                try:
+                    main_output = str(result.pydantic) if result.pydantic else None
+                except:
+                    pass
+            
+            # Last resort: convert entire result to string
+            if not main_output:
+                main_output = str(result)
+            
+        # Display the main output prominently
+        if main_output and len(str(main_output).strip()) > 50:
+            st.markdown(main_output)
+            
+            # Add export button with full content
+            report_text = str(main_output)
+            
+            # Create downloadable versions
+            col_dl1, col_dl2 = st.columns(2)
+            with col_dl1:
                 st.download_button(
                     label="📥 Download Report (Markdown)",
                     data=report_text,
@@ -1279,51 +1366,59 @@ def project_execution_page():
                     mime="text/markdown",
                     use_container_width=True,
                 )
-            else:
-                # If main output is short/empty, check task outputs
-                if hasattr(result, 'tasks_output') and result.tasks_output:
-                    for idx, task_output in enumerate(result.tasks_output, 1):
-                        st.markdown(f"### 📋 Task {idx} Output")
-                        # Try multiple attributes for actual output
-                        task_result = None
-                        if hasattr(task_output, 'raw') and task_output.raw:
-                            task_result = task_output.raw
-                        elif hasattr(task_output, 'output') and task_output.output:
-                            task_result = task_output.output
-                        elif hasattr(task_output, 'result') and task_output.result:
-                            task_result = task_output.result
-                        
-                        if task_result:
-                            st.markdown(task_result)
-                        else:
-                            st.info("No detailed output captured for this task.")
-                        
-                        if idx < len(result.tasks_output):
-                            st.divider()
+            with col_dl2:
+                st.download_button(
+                    label="📄 Download Report (Text)",
+                    data=report_text,
+                    file_name=f"ai_factory_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+                    mime="text/plain",
+                    use_container_width=True,
+                )
+        else:
+            # If main output is short/empty, check task outputs
+            if not isinstance(result, str) and hasattr(result, 'tasks_output') and result.tasks_output:
+                for idx, task_output in enumerate(result.tasks_output, 1):
+                    st.markdown(f"### 📋 Task {idx} Output")
+                    # Try multiple attributes for actual output
+                    task_result = None
+                    if hasattr(task_output, 'raw') and task_output.raw:
+                        task_result = task_output.raw
+                    elif hasattr(task_output, 'output') and task_output.output:
+                        task_result = task_output.output
+                    elif hasattr(task_output, 'result') and task_output.result:
+                        task_result = task_output.result
                     
-                    # Add download button for combined task outputs
-                    combined_output = "\n\n---\n\n".join([
-                        f"## Task {i+1} Output\n\n{getattr(t, 'raw', getattr(t, 'output', str(t)))}"
-                        for i, t in enumerate(result.tasks_output)
-                    ])
-                    st.download_button(
-                        label="📥 Download All Task Outputs (Markdown)",
-                        data=combined_output,
-                        file_name=f"ai_factory_tasks_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
-                        mime="text/markdown",
-                        use_container_width=True,
-                    )
-                else:
-                    # Ultimate fallback
-                    result_text = str(result)
-                    st.markdown(result_text)
-                    st.download_button(
-                        label="📥 Download Report",
-                        data=result_text,
-                        file_name=f"ai_factory_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
-                        mime="text/plain",
-                        use_container_width=True,
-                    )
+                    if task_result:
+                        st.markdown(task_result)
+                    else:
+                        st.info("No detailed output captured for this task.")
+                    
+                    if idx < len(result.tasks_output):
+                        st.divider()
+                
+                # Add download button for combined task outputs
+                combined_output = "\n\n---\n\n".join([
+                    f"## Task {i+1} Output\n\n{getattr(t, 'raw', getattr(t, 'output', str(t)))}"
+                    for i, t in enumerate(result.tasks_output)
+                ])
+                st.download_button(
+                    label="📥 Download All Task Outputs (Markdown)",
+                    data=combined_output,
+                    file_name=f"ai_factory_tasks_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
+                    mime="text/markdown",
+                    use_container_width=True,
+                )
+            else:
+                # Ultimate fallback
+                result_text = str(result)
+                st.markdown(result_text)
+                st.download_button(
+                    label="📥 Download Report",
+                    data=result_text,
+                    file_name=f"ai_factory_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+                    mime="text/plain",
+                    use_container_width=True,
+                )
         
         # ------------------------------------------------------------------------------
         # Deployment Section
