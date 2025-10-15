@@ -137,6 +137,18 @@ div[data-baseweb="select"] > div {
 div[data-baseweb="select"] svg {
   fill: var(--text-muted) !important;
 }
+/* Dropdown menu options */
+[data-baseweb="menu"],
+[data-baseweb="popover"] {
+  background: var(--surface) !important;
+}
+[role="option"] {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+}
+[role="option"]:hover {
+  background: var(--surface-2) !important;
+}
 
 /* Buttons */
 .stButton > button, button[kind="secondary"] {
@@ -173,12 +185,22 @@ button[data-testid="baseButton-primary"]:hover {
   background: var(--accent-hover) !important;
 }
 
-/* Alerts */
-div[data-testid="stAlert"] {
+/* Alerts and info boxes */
+div[data-testid="stAlert"],
+div[data-testid="stNotification"],
+.stAlert {
   background: var(--surface) !important;
   border: 1px solid var(--border) !important;
   border-radius: 12px !important;
   color: var(--text) !important;
+}
+div[data-testid="stAlert"] *,
+div[data-testid="stNotification"] *,
+.stAlert *,
+div[data-testid="stAlert"] p,
+div[data-testid="stAlert"] strong {
+  color: var(--text) !important;
+  background: transparent !important;
 }
 
 /* Code blocks & markdown text */
@@ -237,18 +259,32 @@ textarea {
 [data-baseweb="tooltip"],
 [role="tooltip"],
 .stTooltipIcon,
-[data-testid="stTooltipHoverTarget"] + div {
+[data-testid="stTooltipHoverTarget"] + div,
+[data-baseweb="tooltip"] > div {
   background-color: var(--surface) !important;
   color: var(--text) !important;
   border: 1px solid var(--border) !important;
   border-radius: 8px !important;
+  padding: 8px 12px !important;
 }
 
 /* Ensure help icon and tooltip content are visible */
 .stTooltipIcon svg,
 [data-testid="stMarkdownContainer"] p,
-[role="tooltip"] * {
+[role="tooltip"] *,
+[data-baseweb="tooltip"] *,
+.stTextInput [data-testid="stCaptionContainer"],
+[data-testid="stCaptionContainer"] {
   color: var(--text) !important;
+  background: transparent !important;
+}
+
+/* Help text under inputs */
+[data-testid="stCaptionContainer"],
+.stTextInput small,
+.stTextArea small {
+  color: var(--text-muted) !important;
+  background: transparent !important;
 }
 </style>
 """
@@ -305,6 +341,23 @@ def find_orchestrator(agents: List[Dict[str, Any]]) -> Dict[str, Any] | None:
         if "orchestrator" in a.get("role", "").lower():
             return a
     return None
+
+def format_time(seconds: int) -> str:
+    """Format seconds into a human-readable time string."""
+    if seconds < 60:
+        return f"{seconds} second{'s' if seconds != 1 else ''}"
+    elif seconds < 3600:
+        minutes = seconds // 60
+        remaining_seconds = seconds % 60
+        if remaining_seconds == 0:
+            return f"{minutes} minute{'s' if minutes != 1 else ''}"
+        return f"{minutes} minute{'s' if minutes != 1 else ''} {remaining_seconds} second{'s' if remaining_seconds != 1 else ''}"
+    else:
+        hours = seconds // 3600
+        remaining_minutes = (seconds % 3600) // 60
+        if remaining_minutes == 0:
+            return f"{hours} hour{'s' if hours != 1 else ''}"
+        return f"{hours} hour{'s' if hours != 1 else ''} {remaining_minutes} minute{'s' if remaining_minutes != 1 else ''}"
 
 # ------------------------------------------------------------------------------
 # UI — Sidebar Navigation
@@ -610,7 +663,7 @@ def project_execution_page():
                 progress_bar.progress(progress, text=status_messages[msg_index % len(status_messages)])
                 
                 # Update status and time
-                status_text.info(f"⏱️ **Elapsed Time:** {elapsed} seconds")
+                status_text.info(f"⏱️ **Elapsed Time:** {format_time(elapsed)}")
                 
                 # Rotate through messages
                 if elapsed % 3 == 0 and elapsed > 0:
@@ -631,7 +684,7 @@ def project_execution_page():
             # Complete progress
             progress_bar.progress(100, text="✅ Complete!")
             elapsed_time = int(time.time() - start_time)
-            time_display.success(f"🎉 **Completed in {elapsed_time} seconds!**")
+            time_display.success(f"🎉 **Completed in {format_time(elapsed_time)}!**")
             time.sleep(1.5)
             progress_container.empty()
             
@@ -639,8 +692,6 @@ def project_execution_page():
             progress_container.empty()
             st.error(f"❌ Crew execution failed: {e}")
             return
-        
-        st.success(f"✅ Crew execution complete! (Total time: {elapsed_time}s)")
         
         st.subheader("📄 Final Report")
         
