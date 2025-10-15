@@ -393,7 +393,20 @@ def project_execution_page():
             "Describe what you want to build or accomplish. "
             "The Orchestrator will break it down, plan, and delegate tasks to other agents."
         ),
+        help="Type or paste your project idea here, then click the Launch button below.",
+        key="project_idea_input",
     )
+    
+    # Launch button right below the text area for better UX
+    col1, col2, col3 = st.columns([2, 1, 2])
+    with col2:
+        launch = st.button(
+            "🚀 Launch Crew",
+            type="primary",
+            use_container_width=True,
+            disabled=not bool(idea.strip()),
+            help="Click to start the crew with your project idea" if idea.strip() else "Enter a project idea to enable"
+        )
 
     st.divider()
 
@@ -411,14 +424,11 @@ def project_execution_page():
 
     with colR:
         st.subheader("🎛️ Settings")
-        process_type = st.selectbox(
-            "Crew Process",
-            options=["hierarchical"],
-            index=0,
-            help="This app uses a hierarchical process where the orchestrator leads and delegates."
+        st.info(
+            "**Process Type:** Hierarchical\n\n"
+            "The Orchestrator Agent acts as a manager, analyzing your project, "
+            "creating a plan, and delegating tasks to specialized agents."
         )
-
-    launch = st.button("🧩 Launch Crew", type="primary", use_container_width=True, disabled=not bool(idea.strip()))
     if launch:
         if not OPENAI_KEY:
             st.error("OpenAI API key missing. Add it to `.streamlit/secrets.toml` and reload the app.")
