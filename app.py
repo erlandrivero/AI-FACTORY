@@ -1265,32 +1265,10 @@ def project_execution_page():
         height=220,
         placeholder=(
             "Describe what you want to build or accomplish. "
-            "The Orchestrator will break it down, plan, and delegate tasks to other agents."
+            "The Orchestrator will analyze and present options for tech stack, deployment platform, and GitHub setup."
         ),
-        help="Type or paste your project idea here, then click the Launch button below.",
+        help="Type or paste your project idea here, then click Get Consultation below.",
         key="project_idea_input",
-    )
-    
-    # Deployment Platform Selection
-    st.subheader("🚀 Deployment Target")
-    st.caption("Select where you plan to deploy this project")
-    
-    deployment_platforms = [
-        "Vercel (React, Next.js, Static)",
-        "Netlify (Static, JAMstack)",
-        "Streamlit Cloud (Python/Streamlit apps)",
-        "Railway (Full-stack, Database)",
-        "Render (Full-stack, Free tier)",
-        "Heroku (Full-stack)",
-        "AWS/GCP/Azure (Enterprise)",
-        "No specific platform yet"
-    ]
-    
-    selected_platform = st.selectbox(
-        "Target Platform",
-        options=deployment_platforms,
-        index=7,
-        help="Choose your deployment platform. The crew will tailor code and configurations for this platform."
     )
     
     # Show consultation results if we have them
@@ -1507,14 +1485,21 @@ def project_execution_page():
                 "**Fastest to build:** Option [X]\n"
                 "**Most cost-effective:** Option [Y]\n"
                 "**Estimated time:** [X] weeks\n\n"
-                "## What You'll Get\n\n"
-                "All options include:\n"
-                "- Complete source code\n"
-                "- .gitignore file\n"
-                "- Git setup instructions\n"
-                "- GitHub push commands\n"
-                "- Deployment guide\n"
-                "- README with full workflow\n\n"
+                "## GitHub & Version Control Setup\n\n"
+                "For all options, you'll get:\n"
+                "- `.gitignore` file (configured for your tech stack)\n"
+                "- Git initialization commands\n"
+                "- GitHub repository creation guide\n"
+                "- Push commands to upload your code\n"
+                "- Branch strategy recommendations\n\n"
+                "## Complete Deliverables\n\n"
+                "Full application including:\n"
+                "- **Frontend**: Complete UI components and pages\n"
+                "- **Backend**: API endpoints, database models, auth (if needed)\n"
+                "- **Config**: All necessary config files (package.json, etc.)\n"
+                "- **Deployment**: Platform-specific deploy instructions\n"
+                "- **Documentation**: README, setup guide, API docs\n"
+                "- **Git Setup**: .gitignore + commands to push to GitHub\n\n"
                 f"💡 USER'S PROJECT IDEA:\n{idea.strip()}\n"
                 f"{file_context}\n\n"
                 "⚠️ REMEMBER: Present 2-3 clear options. User will SELECT one, then the team builds it.\n"
@@ -1563,6 +1548,9 @@ def project_execution_page():
                 return
         
         # PHASE 2: BUILDING - Full crew builds code based on user selections
+        
+        # Get selected platform from user selections or use default
+        selected_platform = st.session_state.user_selections.get('platform', 'As recommended')
 
         # Convert profiles to CrewAI Agent instances
         try:
@@ -1649,27 +1637,48 @@ def project_execution_page():
                 f"{file_context}"
                 f"{user_selections_context}\n\n"
                 "🔧 EXECUTION GUIDELINES:\n"
-                "1. Analyze requirements thoroughly\n"
-                "2. Design the architecture\n"
-                "3. Generate ALL necessary code files\n"
-                "4. Include configuration files (package.json, requirements.txt, etc.)\n"
-                f"5. Provide deployment instructions for {selected_platform}\n"
-                "6. Ensure code follows best practices and is production-ready\n\n"
+                "1. Build a COMPLETE, PRODUCTION-READY web application\n"
+                "2. Include ALL layers: Frontend UI + Backend API + Database (if needed)\n"
+                "3. Generate EVERY file needed to run the app locally\n"
+                "4. Include .gitignore configured for the tech stack\n"
+                f"5. Provide Git setup + GitHub push commands\n"
+                f"6. Include deployment instructions for {selected_platform}\n"
+                "7. Make it immediately runnable - no missing pieces!\n\n"
+                "⚠️ COMPLETENESS CHECKLIST:\n"
+                "✅ Frontend: Pages, components, styles, routing\n"
+                "✅ Backend: API routes, controllers, models, middleware\n"
+                "✅ Config: package.json/requirements.txt with ALL dependencies\n"
+                "✅ Git: .gitignore + init commands + GitHub push guide\n"
+                "✅ Deploy: Step-by-step deployment instructions\n"
+                "✅ Docs: README with setup, run, and deploy instructions\n\n"
                 "📊 FINAL OUTPUT STRUCTURE:\n"
                 "## Project Overview\n"
                 "[Brief description]\n\n"
                 "## Architecture\n"
-                "[System design and tech stack]\n\n"
+                "[System design]\n\n"
                 "## Source Code Files\n"
-                "### File: filename.ext\n"
-                "```language\n"
-                "[complete code]\n"
+                "### File: .gitignore\n"
                 "```\n"
-                "[Repeat for each file]\n\n"
+                "[Complete .gitignore]\n"
+                "```\n\n"
+                "### File: [config file]\n"
+                "```\n"
+                "[Complete config]\n"
+                "```\n\n"
+                "[ALL frontend + backend files]\n\n"
+                "## Git & GitHub Setup\n"
+                "```bash\n"
+                "git init\n"
+                "git add .\n"
+                "git commit -m \"Initial commit\"\n"
+                "# Create repo on GitHub, then:\n"
+                "git remote add origin https://github.com/username/repo.git\n"
+                "git push -u origin main\n"
+                "```\n\n"
                 "## Deployment Guide\n"
-                f"[Step-by-step for {selected_platform}]\n\n"
-                "## Next Steps\n"
-                "[What to do after getting these files]"
+                f"[Complete {selected_platform} deployment steps]\n\n"
+                "## Running Locally\n"
+                "[Commands to install dependencies and run]"
             )
             # Build tech-specific expected output
             if st.session_state.user_selections.get('tech'):
