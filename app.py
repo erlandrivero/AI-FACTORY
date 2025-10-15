@@ -460,12 +460,11 @@ def project_execution_page():
             agent=build_crewai_agent(orchestrator_profile),
         )
 
-        crew_process = Process.hierarchical
         crew = Crew(
             agents=crew_agents,
             tasks=[orchestrator_task],
-            process=crew_process,
-            verbose=True,
+            process=Process.hierarchical,
+            manager_agent=build_crewai_agent(orchestrator_profile),
         )
 
         # Run with a spinner and display results
