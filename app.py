@@ -27,6 +27,8 @@ from uuid import uuid4
 
 import streamlit as st
 from crewai import Agent, Task, Crew, Process
+from pymongo import MongoClient
+from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
 
 # ------------------------------------------------------------------------------
 # App & Security Setup
@@ -47,6 +49,16 @@ if not OPENAI_KEY:
     )
 # CrewAI / OpenAI SDKs pick up the key from environment variables
 os.environ["OPENAI_API_KEY"] = OPENAI_KEY
+
+# MongoDB connection - get from Streamlit secrets or environment
+MONGODB_URI = st.secrets.get("MONGODB_URI", os.getenv("MONGODB_URI", ""))
+USE_MONGODB = bool(MONGODB_URI)
+
+if not USE_MONGODB:
+    st.info(
+        "💡 **Tip:** Add MongoDB connection to persist agents across deployments. "
+        'Add `MONGODB_URI = "your-connection-string"` to `.streamlit/secrets.toml`'
+    )
 
 # ------------------------------------------------------------------------------
 # Dark Mode CSS Injection (palette, fonts, components)
@@ -365,14 +377,82 @@ st.markdown(DARK_CSS, unsafe_allow_html=True)
 # ------------------------------------------------------------------------------
 AGENTS_FILE = Path("agents.json")
 
-def _ensure_agents_file() -> None:
-    """Create the agents.json file if it doesn't exist."""
+# MongoDB setup
+@st.cache_resource
+def get_mongodb_client():
+    """Get MongoDB client with connection pooling."""
+    if not USE_MONGODB:
+        return None
+    try:
+        client = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=5000)
+        # Test connection
+        client.admin.command('ping')
+        return client
+    except (ConnectionFailure, ServerSelectionTimeoutError) as e:
+        st.error(f"❌ MongoDB connection failed: {e}")
+        return None
+    except Exception as e:
+        st.error(f"❌ MongoDB error: {e}")
+        return None
+
+def get_agents_collection():
+    """Get the agents collection from MongoDB."""
+    client = get_mongodb_client()
+    if client is None:
+        return None
+    db = client.get_database("ai_factory")
+    return db.get_collection("agents")
+
+def migrate_json_to_mongodb() -> None:
+    """Migrate agents from JSON file to MongoDB (one-time migration)."""
+    if not USE_MONGODB:
+        return
+    
+    collection = get_agents_collection()
+    if collection is None:
+        return
+    
+    # Check if migration already done
+    if collection.count_documents({}) > 0:
+        return  # Already have data in MongoDB
+    
+    # Check if JSON file exists with data
     if not AGENTS_FILE.exists():
-        AGENTS_FILE.write_text(json.dumps([], indent=2), encoding="utf-8")
+        return
+    
+    try:
+        data = json.loads(AGENTS_FILE.read_text(encoding="utf-8"))
+        if isinstance(data, list) and len(data) > 0:
+            # Insert all agents to MongoDB
+            for agent in data:
+                if "_id" in agent:
+                    del agent["_id"]  # Remove _id if exists
+            collection.insert_many(data)
+            st.success(f"✅ Migrated {len(data)} agents from JSON to MongoDB")
+    except Exception as e:
+        st.warning(f"⚠️ Migration warning: {e}")
 
 def load_agents() -> List[Dict[str, Any]]:
-    """Load agent profiles from agents.json (auto-creates if missing)."""
-    _ensure_agents_file()
+    """Load agent profiles from MongoDB or JSON fallback."""
+    if USE_MONGODB:
+        collection = get_agents_collection()
+        if collection is not None:
+            try:
+                agents = list(collection.find({}))
+                # Convert MongoDB _id to string id for consistency
+                for agent in agents:
+                    if "_id" in agent:
+                        if "id" not in agent:
+                            agent["id"] = str(agent["_id"])
+                        del agent["_id"]
+                return agents
+            except Exception as e:
+                st.error(f"❌ Error loading from MongoDB: {e}")
+                return []
+    
+    # Fallback to JSON file
+    if not AGENTS_FILE.exists():
+        AGENTS_FILE.write_text(json.dumps([], indent=2), encoding="utf-8")
     try:
         data = json.loads(AGENTS_FILE.read_text(encoding="utf-8"))
         if isinstance(data, list):
@@ -382,7 +462,24 @@ def load_agents() -> List[Dict[str, Any]]:
         return []
 
 def save_agents(all_agents: List[Dict[str, Any]]) -> None:
-    """Persist the full agent list to agents.json."""
+    """Persist the full agent list to MongoDB or JSON."""
+    if USE_MONGODB:
+        collection = get_agents_collection()
+        if collection is not None:
+            try:
+                # Clear and reinsert all
+                collection.delete_many({})
+                if all_agents:
+                    # Remove _id fields before insert
+                    for agent in all_agents:
+                        if "_id" in agent:
+                            del agent["_id"]
+                    collection.insert_many(all_agents)
+                return
+            except Exception as e:
+                st.error(f"❌ Error saving to MongoDB: {e}")
+    
+    # Fallback to JSON
     AGENTS_FILE.write_text(json.dumps(all_agents, indent=2), encoding="utf-8")
 
 def add_agent(role: str, goal: str, backstory: str, allow_delegation: bool) -> Dict[str, Any]:
@@ -394,6 +491,17 @@ def add_agent(role: str, goal: str, backstory: str, allow_delegation: bool) -> D
         "backstory": backstory.strip(),
         "allow_delegation": bool(allow_delegation),
     }
+    
+    if USE_MONGODB:
+        collection = get_agents_collection()
+        if collection is not None:
+            try:
+                collection.insert_one(agent.copy())
+                return agent
+            except Exception as e:
+                st.error(f"❌ Error adding agent to MongoDB: {e}")
+    
+    # Fallback to JSON
     all_agents = load_agents()
     all_agents.append(agent)
     save_agents(all_agents)
@@ -401,9 +509,23 @@ def add_agent(role: str, goal: str, backstory: str, allow_delegation: bool) -> D
 
 def delete_agent(agent_id: str) -> None:
     """Delete an agent by id."""
+    if USE_MONGODB:
+        collection = get_agents_collection()
+        if collection is not None:
+            try:
+                collection.delete_one({"id": agent_id})
+                return
+            except Exception as e:
+                st.error(f"❌ Error deleting agent from MongoDB: {e}")
+    
+    # Fallback to JSON
     all_agents = load_agents()
     filtered = [a for a in all_agents if a.get("id") != agent_id]
     save_agents(filtered)
+
+# Run migration on app start
+if USE_MONGODB:
+    migrate_json_to_mongodb()
 
 def find_orchestrator(agents: List[Dict[str, Any]]) -> Dict[str, Any] | None:
     """Find the orchestrator agent (by role containing 'orchestrator')."""
