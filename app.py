@@ -696,7 +696,7 @@ def agent_management_page():
             with cols[0]:
                 if st.button("🗑️ Delete", key=f"del_{a['id']}"):
                     delete_agent(a["id"])
-                    st.experimental_rerun()
+                    st.rerun()
 
 # ------------------------------------------------------------------------------
 # Helper: Instantiate CrewAI Agents from stored profiles
@@ -724,7 +724,7 @@ def build_crewai_agent(profile: Dict[str, Any]) -> Agent:
 # ------------------------------------------------------------------------------
 def project_execution_page():
     st.header("🚀 Project Execution")
-    st.write("Describe your project idea and launch a hierarchical crew.")
+    st.write("Describe your project idea and launch your crew.")
 
     idea = st.text_area(
         "Project Idea",
