@@ -1447,13 +1447,22 @@ def project_execution_page():
                 "- Pros: [2-3 key benefits]\n"
                 "- Cons: [1-2 limitations]\n"
                 "- Best for: [ideal use case]\n"
-                "- Platform: [Recommended deployment platform]\n\n"
+                "- Platform: [Recommended deployment platform]\n"
+                "- Version Control: Git + GitHub\n\n"
                 "(Repeat for Options B and C)\n\n"
                 "## Quick Recommendations\n\n"
                 "**Recommended:** Option [A/B/C] because [brief reason]\n"
                 "**Fastest to build:** Option [X]\n"
                 "**Most cost-effective:** Option [Y]\n"
                 "**Estimated time:** [X] weeks\n\n"
+                "## What You'll Get\n\n"
+                "All options include:\n"
+                "- Complete source code\n"
+                "- .gitignore file\n"
+                "- Git setup instructions\n"
+                "- GitHub push commands\n"
+                "- Deployment guide\n"
+                "- README with full workflow\n\n"
                 f"💡 USER'S PROJECT IDEA:\n{idea.strip()}\n"
                 f"{file_context}\n\n"
                 "⚠️ REMEMBER: Present 2-3 clear options. User will SELECT one, then the team builds it.\n"
@@ -1464,7 +1473,14 @@ def project_execution_page():
                 orch_agent = build_crewai_agent(orchestrator_profile)
                 consult_task = Task(
                     description=consultation_task_desc,
-                    expected_output="Detailed consultation with technology options, architecture recommendations, cost analysis, and platform suggestions formatted clearly for user decision-making.",
+                    expected_output=(
+                        "Concise consultation with 2-3 technology stack options, each including:\n"
+                        "- Tech stack details\n"
+                        "- Pros and cons\n"
+                        "- Recommended deployment platform\n"
+                        "- Version control (Git/GitHub) mention\n"
+                        "Plus quick recommendations and what deliverables user will receive (including Git setup, .gitignore, push commands)."
+                    ),
                     agent=orch_agent
                 )
                 
@@ -1535,11 +1551,14 @@ def project_execution_page():
             deliverables_req = []
             if include_code:
                 deliverables_req.append("- Complete, ready-to-use source code files with proper structure")
+                deliverables_req.append("- .gitignore file (properly configured for the tech stack)")
             if include_deployment:
                 deliverables_req.append("- Deployment configuration files (package.json, requirements.txt, Dockerfile, etc.)")
                 deliverables_req.append(f"- Platform-specific deployment guide for {selected_platform}")
+                deliverables_req.append("- Git repository setup instructions")
+                deliverables_req.append("- Commands to initialize Git and push to GitHub")
             if include_docs:
-                deliverables_req.append("- README.md with setup instructions")
+                deliverables_req.append("- README.md with setup instructions AND Git/GitHub workflow")
                 deliverables_req.append("- API documentation if applicable")
                 deliverables_req.append("- Architecture documentation")
             if include_tests:
