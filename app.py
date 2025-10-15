@@ -232,6 +232,24 @@ textarea {
 .stTextArea small {
   display: none !important;
 }
+
+/* Fix tooltips and help text visibility */
+[data-baseweb="tooltip"],
+[role="tooltip"],
+.stTooltipIcon,
+[data-testid="stTooltipHoverTarget"] + div {
+  background-color: var(--surface) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+}
+
+/* Ensure help icon and tooltip content are visible */
+.stTooltipIcon svg,
+[data-testid="stMarkdownContainer"] p,
+[role="tooltip"] * {
+  color: var(--text) !important;
+}
 </style>
 """
 st.markdown(DARK_CSS, unsafe_allow_html=True)
@@ -431,11 +449,20 @@ def project_execution_page():
 
     with colR:
         st.subheader("🎛️ Settings")
-        st.info(
-            "**Process Type:** Hierarchical\n\n"
-            "The Orchestrator Agent acts as a manager, analyzing your project, "
-            "creating a plan, and delegating tasks to specialized agents."
+        process_type = st.selectbox(
+            "Process Type",
+            options=["Hierarchical", "Sequential", "Consensus"],
+            index=0,
+            help="Choose how agents work together on your project."
         )
+        
+        # Show description based on selected process
+        process_descriptions = {
+            "Hierarchical": "🎯 **Manager-Led**: Orchestrator acts as a manager, delegating tasks to specialized agents.",
+            "Sequential": "📝 **Step-by-Step**: Tasks execute one after another in order. Each agent completes their work before the next begins.",
+            "Consensus": "🤝 **Collaborative**: Agents work together and reach consensus on the best approach."
+        }
+        st.info(process_descriptions[process_type])
     if launch:
         if not OPENAI_KEY:
             st.error("OpenAI API key missing. Add it to `.streamlit/secrets.toml` and reload the app.")
@@ -446,11 +473,6 @@ def project_execution_page():
             st.error("No agents are configured. Please add agents in **Agent Management**.")
             return
 
-        orchestrator_profile = find_orchestrator(saved_agents)
-        if not orchestrator_profile:
-            st.error("No Orchestrator Agent found. Create an agent with role name including 'Orchestrator'.")
-            return
-
         # Convert profiles to CrewAI Agent instances
         try:
             crew_agents: List[Agent] = [build_crewai_agent(p) for p in saved_agents]
@@ -458,33 +480,86 @@ def project_execution_page():
             st.error(f"Failed to initialize agents: {e}")
             return
 
-        # Create a single high-level orchestration task
-        task_description = (
-            "You are the Orchestrator for this project. Analyze the user's idea, "
-            "develop a clear execution plan, break it into tasks, and coordinate the work. "
-            "Delegate to other available agents as needed. "
-            "Deliver a final, cohesive result, including the plan, key decisions, artifacts, and next steps.\n\n"
-            f"User's idea:\n{idea.strip()}"
-        )
-        orchestrator_task = Task(
-            description=task_description,
-            expected_output=(
-                "A comprehensive final deliverable that includes: "
-                "(1) a concise project summary, "
-                "(2) a prioritized plan with milestones, "
-                "(3) delegated tasks and outcomes, "
-                "(4) final recommendations or artifacts, and "
-                "(5) clear next steps."
-            ),
-            agent=build_crewai_agent(orchestrator_profile),
-        )
+        # Build tasks and crew based on selected process type
+        tasks = []
+        crew_process = None
+        manager_agent = None
+        
+        if process_type == "Hierarchical":
+            # Hierarchical requires an orchestrator
+            orchestrator_profile = find_orchestrator(saved_agents)
+            if not orchestrator_profile:
+                st.error("Hierarchical mode requires an Orchestrator Agent. Create an agent with 'Orchestrator' in the role name.")
+                return
+            
+            # Single high-level task for orchestrator
+            task_description = (
+                "You are the Orchestrator for this project. Analyze the user's idea, "
+                "develop a clear execution plan, break it into tasks, and coordinate the work. "
+                "Delegate to other available agents as needed. "
+                "Deliver a final, cohesive result, including the plan, key decisions, artifacts, and next steps.\n\n"
+                f"User's idea:\n{idea.strip()}"
+            )
+            tasks.append(Task(
+                description=task_description,
+                expected_output=(
+                    "A comprehensive final deliverable that includes: "
+                    "(1) a concise project summary, "
+                    "(2) a prioritized plan with milestones, "
+                    "(3) delegated tasks and outcomes, "
+                    "(4) final recommendations or artifacts, and "
+                    "(5) clear next steps."
+                ),
+                agent=build_crewai_agent(orchestrator_profile),
+            ))
+            crew_process = Process.hierarchical
+            manager_agent = build_crewai_agent(orchestrator_profile)
+            
+        elif process_type == "Sequential":
+            # Sequential: Create a task for each agent in order
+            crew_process = Process.sequential
+            for agent_profile in saved_agents:
+                task_desc = (
+                    f"As the {agent_profile.get('role', 'Agent')}, analyze the user's project idea and contribute your specialized expertise. "
+                    f"Build upon previous work if available.\n\n"
+                    f"Project idea: {idea.strip()}\n\n"
+                    f"Your goal: {agent_profile.get('goal', 'Contribute to the project')}"
+                )
+                tasks.append(Task(
+                    description=task_desc,
+                    expected_output=f"Detailed analysis and contribution from the {agent_profile.get('role', 'Agent')} perspective.",
+                    agent=build_crewai_agent(agent_profile),
+                ))
+                
+        else:  # Consensus
+            # Consensus: Each agent contributes to collaborative solution
+            crew_process = Process.sequential
+            for agent_profile in saved_agents:
+                task_desc = (
+                    f"As the {agent_profile.get('role', 'Agent')}, collaborate on the user's project idea. "
+                    f"Review previous contributions and add your unique perspective. "
+                    f"Work toward a consensus solution that incorporates all viewpoints.\n\n"
+                    f"Project idea: {idea.strip()}\n\n"
+                    f"Your goal: {agent_profile.get('goal', 'Contribute collaboratively')}"
+                )
+                tasks.append(Task(
+                    description=task_desc,
+                    expected_output=f"Collaborative contribution from {agent_profile.get('role', 'Agent')} that builds consensus.",
+                    agent=build_crewai_agent(agent_profile),
+                ))
 
-        crew = Crew(
-            agents=crew_agents,
-            tasks=[orchestrator_task],
-            process=Process.hierarchical,
-            manager_agent=build_crewai_agent(orchestrator_profile),
-        )
+        # Create the crew with appropriate configuration
+        crew_config = {
+            "agents": crew_agents,
+            "tasks": tasks,
+            "process": crew_process,
+        }
+        
+        # Add manager only for hierarchical
+        if manager_agent:
+            crew_config["manager_agent"] = manager_agent
+            
+        crew = Crew(**crew_config)
 
         # Run with animated progress and live time tracking
         start_time = time.time()
