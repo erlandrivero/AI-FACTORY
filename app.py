@@ -1199,11 +1199,17 @@ def project_execution_page():
     st.header("🚀 Project Execution")
     st.write("Describe your project idea and launch your crew.")
 
-    # Initialize session state for results
+    # Initialize session state for results and workflow
     if 'execution_result' not in st.session_state:
         st.session_state.execution_result = None
     if 'execution_metadata' not in st.session_state:
         st.session_state.execution_metadata = {}
+    if 'workflow_phase' not in st.session_state:
+        st.session_state.workflow_phase = None  # None, 'consultation', 'building'
+    if 'consultation_result' not in st.session_state:
+        st.session_state.consultation_result = None
+    if 'user_selections' not in st.session_state:
+        st.session_state.user_selections = {}
 
     idea = st.text_area(
         "Project Idea",
@@ -1237,6 +1243,41 @@ def project_execution_page():
         index=7,
         help="Choose your deployment platform. The crew will tailor code and configurations for this platform."
     )
+    
+    # Show consultation results if we have them
+    if st.session_state.consultation_result:
+        st.success("✅ Orchestrator has analyzed your project!")
+        with st.expander("👁️ View Consultation Results", expanded=True):
+            st.markdown(st.session_state.consultation_result)
+            
+            st.subheader("🎯 Make Your Selections")
+            st.caption("Review the options above and specify your preferences below")
+            
+            col_sel1, col_sel2 = st.columns(2)
+            with col_sel1:
+                tech_choice = st.text_input(
+                    "🛠️ Tech Stack Choice",
+                    value=st.session_state.user_selections.get('tech', ''),
+                    help="Enter your preferred tech stack (e.g., 'React + Node.js', 'Python Flask', etc.)"
+                )
+                platform_choice = st.text_input(
+                    "🚀 Deployment Platform",
+                    value=st.session_state.user_selections.get('platform', selected_platform),
+                    help="Enter your preferred platform"
+                )
+            with col_sel2:
+                architecture_choice = st.text_area(
+                    "🏛️ Architecture Preferences",
+                    value=st.session_state.user_selections.get('architecture', ''),
+                    height=100,
+                    help="Any specific architecture preferences or requirements"
+                )
+            
+            st.session_state.user_selections = {
+                'tech': tech_choice,
+                'platform': platform_choice,
+                'architecture': architecture_choice
+            }
     
     # Deliverables Selection
     st.subheader("📦 What to Build")
@@ -1306,16 +1347,38 @@ def project_execution_page():
     
     st.divider()
     
-    # Launch button after settings for better workflow
+    # Smart button based on workflow phase
     col1, col2, col3 = st.columns([2, 1, 2])
+    
+    # Determine button text and action
+    if not st.session_state.consultation_result:
+        # Phase 1: Get consultation
+        button_text = "💡 Get Consultation"
+        button_help = "Orchestrator will analyze your idea and present options"
+        workflow_action = "consultation"
+    else:
+        # Phase 2: Build with selections
+        button_text = "🚀 Build Project"
+        button_help = "Full crew will build code based on your selections"
+        workflow_action = "building"
+    
     with col2:
         launch = st.button(
-            "🚀 Launch Crew",
+            button_text,
             type="primary",
             use_container_width=True,
             disabled=not bool(idea.strip()),
-            help="Click to start the crew with your project idea" if idea.strip() else "Enter a project idea to enable"
+            help=button_help if idea.strip() else "Enter a project idea to enable"
         )
+    
+    # Action buttons
+    if st.session_state.consultation_result:
+        with col1:
+            if st.button("🔄 Start Over", help="Clear consultation and start fresh"):
+                st.session_state.consultation_result = None
+                st.session_state.user_selections = {}
+                st.session_state.workflow_phase = None
+                st.rerun()
     
     # Clear results button
     if st.session_state.execution_result is not None:
@@ -1334,6 +1397,82 @@ def project_execution_page():
         if not saved_agents:
             st.error("No agents are configured. Please add agents in **Agent Management**.")
             return
+        
+        # Determine which workflow phase we're in
+        st.session_state.workflow_phase = workflow_action
+        
+        # PHASE 1: CONSULTATION - Just Orchestrator presents options
+        if workflow_action == "consultation":
+            # Find orchestrator
+            orchestrator_profile = find_orchestrator(saved_agents)
+            if not orchestrator_profile:
+                st.error("Consultation mode requires an Orchestrator Agent. Create an agent with 'Orchestrator' in the role name.")
+                return
+            
+            file_context = build_context_from_files(files_data)
+            
+            # Consultation task - analyze and present options
+            consultation_task_desc = (
+                "You are the Orchestrator consulting with the user BEFORE the project build begins.\n\n"
+                "🎯 YOUR ROLE:\n"
+                "Analyze the user's project idea and present OPTIONS for them to choose from.\n\n"
+                "📋 PRESENT TO THE USER:\n\n"
+                "1. **Technology Stack Options** (2-3 recommendations):\n"
+                "   - Option A: [Tech stack] - Pros: [...] - Cons: [...] - Best for: [...]\n"
+                "   - Option B: [Alternative stack] - Pros: [...] - Cons: [...] - Best for: [...]\n\n"
+                "2. **Architecture Approaches** (2-3 options):\n"
+                "   - Monolithic vs Microservices\n"
+                "   - SPA vs SSR vs Static\n"
+                "   - Database choices (SQL vs NoSQL vs Both)\n\n"
+                "3. **Cost & Platform Recommendations**:\n"
+                "   - Free tier options and their limitations\n"
+                "   - Paid options and their benefits\n"
+                "   - Estimated monthly costs\n\n"
+                "4. **Development Complexity**:\n"
+                "   - Time estimate\n"
+                "   - Skill level required\n"
+                "   - Major challenges\n\n"
+                f"💡 USER'S PROJECT IDEA:\n{idea.strip()}\n"
+                f"{file_context}\n\n"
+                "⚠️ IMPORTANT: This is a CONSULTATION, not implementation. Present clear options and recommendations.\n"
+                "The user will make selections, and THEN the full team will build the actual code in Phase 2."
+            )
+            
+            try:
+                orch_agent = build_crewai_agent(orchestrator_profile)
+                consult_task = Task(
+                    description=consultation_task_desc,
+                    expected_output="Detailed consultation with technology options, architecture recommendations, cost analysis, and platform suggestions formatted clearly for user decision-making.",
+                    agent=orch_agent
+                )
+                
+                consult_crew = Crew(
+                    agents=[orch_agent],
+                    tasks=[consult_task],
+                    process=Process.sequential,
+                    verbose=True
+                )
+                
+                with st.spinner("🤔 Orchestrator is analyzing your project..."):
+                    consultation_result = consult_crew.kickoff()
+                
+                # Store consultation result
+                if hasattr(consultation_result, 'raw'):
+                    st.session_state.consultation_result = str(consultation_result.raw)
+                elif hasattr(consultation_result, 'output'):
+                    st.session_state.consultation_result = str(consultation_result.output)
+                else:
+                    st.session_state.consultation_result = str(consultation_result)
+                
+                st.success("✅ Consultation complete! Review the options above and make your selections.")
+                st.rerun()
+                return
+                
+            except Exception as e:
+                st.error(f"❌ Consultation failed: {e}")
+                return
+        
+        # PHASE 2: BUILDING - Full crew builds code based on user selections
 
         # Convert profiles to CrewAI Agent instances
         try:
@@ -1356,6 +1495,18 @@ def project_execution_page():
             
             # Build context from uploaded files
             file_context = build_context_from_files(files_data)
+            
+            # Add user selections to context
+            user_selections_context = ""
+            if st.session_state.user_selections:
+                sels = st.session_state.user_selections
+                user_selections_context = (
+                    "\n\n🎯 USER'S SELECTED PREFERENCES (from consultation):\n"
+                    f"- Tech Stack: {sels.get('tech', 'Not specified')}\n"
+                    f"- Platform: {sels.get('platform', 'Not specified')}\n"
+                    f"- Architecture: {sels.get('architecture', 'Not specified')}\n"
+                    "⚠️ CRITICAL: Build the project using THESE user-selected preferences!\n"
+                )
             
             # Build deliverables requirements
             deliverables_req = []
@@ -1390,7 +1541,8 @@ def project_execution_page():
                 "2. Complete file contents in properly formatted code blocks\n"
                 "3. Brief explanation of what the file does\n\n"
                 f"💡 USER'S PROJECT IDEA:\n{idea.strip()}\n"
-                f"{file_context}\n\n"
+                f"{file_context}"
+                f"{user_selections_context}\n\n"
                 "🔧 EXECUTION GUIDELINES:\n"
                 "1. Analyze requirements thoroughly\n"
                 "2. Design the architecture\n"
@@ -1809,34 +1961,30 @@ def project_execution_page():
         st.subheader("💡 Recommended Platforms")
         st.caption("Based on your project's technology stack and requirements")
         
-        # Display platform options in cards
+        # Display platform options in clean cards
         for idx, platform in enumerate(project_analysis["platforms"]):
             with st.container():
-                col1, col2, col3 = st.columns([3, 1, 1])
+                # Use fixed column ratios for consistency
+                col_platform, col_cost, col_diff = st.columns([4, 2, 2])
                 
-                with col1:
-                    st.markdown(f"### {platform['name']}")
-                    st.caption(f"**Best for:** {platform['best_for']}")
+                with col_platform:
+                    st.markdown(f"**{platform['name']}**")
+                    st.caption(f"{platform['best_for']}")
                     
-                    # Pros and cons
-                    pros_cons = st.columns(2)
-                    with pros_cons[0]:
-                        st.markdown("**✅ Pros:**")
-                        for pro in platform["pros"][:2]:  # Show first 2
-                            st.markdown(f"• {pro}")
-                    with pros_cons[1]:
-                        st.markdown("**⚠️ Cons:**")
-                        for con in platform["cons"][:2]:  # Show first 2
-                            st.markdown(f"• {con}")
+                    # Compact pros/cons
+                    pros_text = " • ".join(platform["pros"][:2])
+                    cons_text = " • ".join(platform["cons"][:1])
+                    st.markdown(f"✅ {pros_text}")
+                    if cons_text:
+                        st.markdown(f"⚠️ {cons_text}")
                 
-                with col2:
-                    st.metric("Cost", platform["cost"])
-                    st.caption(platform["tier_details"])
+                with col_cost:
+                    st.metric("💰 Cost", platform["cost"], help=platform["tier_details"])
                 
-                with col3:
-                    st.metric("Difficulty", platform["difficulty"])
+                with col_diff:
+                    st.metric("📊 Level", platform["difficulty"].replace(" ⭐", ""))
                     if idx == 0:
-                        st.success("Recommended")
+                        st.success("Top Pick")
                 
                 st.divider()
         
