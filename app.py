@@ -225,6 +225,13 @@ h1, h2, h3, h4, h5, h6, label, p, li, span {
 textarea {
   line-height: 1.45 !important;
 }
+
+/* Hide the "Press Ctrl+Enter to apply" hint in text areas */
+[data-testid="InputInstructions"],
+.stTextArea [data-testid="stMarkdownContainer"] small,
+.stTextArea small {
+  display: none !important;
+}
 </style>
 """
 st.markdown(DARK_CSS, unsafe_allow_html=True)
