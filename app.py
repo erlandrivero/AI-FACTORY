@@ -1247,37 +1247,57 @@ def project_execution_page():
     # Show consultation results if we have them
     if st.session_state.consultation_result:
         st.success("✅ Orchestrator has analyzed your project!")
-        with st.expander("👁️ View Consultation Results", expanded=True):
+        with st.expander("👁️ View Consultation Analysis", expanded=False):
             st.markdown(st.session_state.consultation_result)
+        
+        st.subheader("🎯 Make Your Selections")
+        st.caption("Click to select your preferences based on the consultation above")
+        
+        # Interactive selectors
+        col_sel1, col_sel2 = st.columns(2)
+        
+        with col_sel1:
+            tech_choice = st.radio(
+                "🛠️ Technology Stack",
+                options=["Option A", "Option B", "Option C", "Custom"],
+                index=0,
+                help="Choose the tech stack you want to use"
+            )
             
-            st.subheader("🎯 Make Your Selections")
-            st.caption("Review the options above and specify your preferences below")
-            
-            col_sel1, col_sel2 = st.columns(2)
-            with col_sel1:
-                tech_choice = st.text_input(
-                    "🛠️ Tech Stack Choice",
-                    value=st.session_state.user_selections.get('tech', ''),
-                    help="Enter your preferred tech stack (e.g., 'React + Node.js', 'Python Flask', etc.)"
-                )
-                platform_choice = st.text_input(
-                    "🚀 Deployment Platform",
-                    value=st.session_state.user_selections.get('platform', selected_platform),
-                    help="Enter your preferred platform"
-                )
-            with col_sel2:
-                architecture_choice = st.text_area(
-                    "🏛️ Architecture Preferences",
-                    value=st.session_state.user_selections.get('architecture', ''),
-                    height=100,
-                    help="Any specific architecture preferences or requirements"
-                )
-            
-            st.session_state.user_selections = {
-                'tech': tech_choice,
-                'platform': platform_choice,
-                'architecture': architecture_choice
-            }
+            if tech_choice == "Custom":
+                custom_tech = st.text_input("Specify custom stack", placeholder="e.g., Vue.js + Firebase")
+                tech_choice = f"Custom: {custom_tech}" if custom_tech else "Option A"
+        
+        with col_sel2:
+            platform_choice = st.selectbox(
+                "🚀 Deployment Platform",
+                options=[
+                    "Vercel",
+                    "Netlify", 
+                    "Streamlit Cloud",
+                    "Railway",
+                    "Render",
+                    "Heroku",
+                    "AWS/GCP/Azure",
+                    "As recommended"
+                ],
+                index=7,
+                help="Where do you want to deploy?"
+            )
+        
+        # Additional preferences
+        additional_prefs = st.text_area(
+            "💬 Additional Requirements (Optional)",
+            value=st.session_state.user_selections.get('additional', ''),
+            placeholder="Any other specific requirements or preferences...",
+            height=80
+        )
+        
+        st.session_state.user_selections = {
+            'tech': tech_choice,
+            'platform': platform_choice,
+            'additional': additional_prefs
+        }
     
     # Deliverables Selection
     st.subheader("📦 What to Build")
@@ -1415,27 +1435,29 @@ def project_execution_page():
             consultation_task_desc = (
                 "You are the Orchestrator consulting with the user BEFORE the project build begins.\n\n"
                 "🎯 YOUR ROLE:\n"
-                "Analyze the user's project idea and present OPTIONS for them to choose from.\n\n"
-                "📋 PRESENT TO THE USER:\n\n"
-                "1. **Technology Stack Options** (2-3 recommendations):\n"
-                "   - Option A: [Tech stack] - Pros: [...] - Cons: [...] - Best for: [...]\n"
-                "   - Option B: [Alternative stack] - Pros: [...] - Cons: [...] - Best for: [...]\n\n"
-                "2. **Architecture Approaches** (2-3 options):\n"
-                "   - Monolithic vs Microservices\n"
-                "   - SPA vs SSR vs Static\n"
-                "   - Database choices (SQL vs NoSQL vs Both)\n\n"
-                "3. **Cost & Platform Recommendations**:\n"
-                "   - Free tier options and their limitations\n"
-                "   - Paid options and their benefits\n"
-                "   - Estimated monthly costs\n\n"
-                "4. **Development Complexity**:\n"
-                "   - Time estimate\n"
-                "   - Skill level required\n"
-                "   - Major challenges\n\n"
+                "Analyze the user's project idea and present 2-3 SPECIFIC OPTIONS for them to choose from.\n\n"
+                "⚠️ CRITICAL UNDERSTANDING:\n"
+                "- If user says 'app' or 'application' → They want a WEB APPLICATION (React, Vue, Flask, etc.)\n"
+                "- NOT notebooks, NOT Jupyter, NOT Google Colab unless specifically requested\n"
+                "- Focus on deployable, user-facing applications\n\n"
+                "📋 PROVIDE EXACTLY THIS FORMAT:\n\n"
+                "## Technology Stack Options\n\n"
+                "**Option A: [Stack Name]**\n"
+                "- Stack: [e.g., React + Node.js + PostgreSQL]\n"
+                "- Pros: [2-3 key benefits]\n"
+                "- Cons: [1-2 limitations]\n"
+                "- Best for: [ideal use case]\n"
+                "- Platform: [Recommended deployment platform]\n\n"
+                "(Repeat for Options B and C)\n\n"
+                "## Quick Recommendations\n\n"
+                "**Recommended:** Option [A/B/C] because [brief reason]\n"
+                "**Fastest to build:** Option [X]\n"
+                "**Most cost-effective:** Option [Y]\n"
+                "**Estimated time:** [X] weeks\n\n"
                 f"💡 USER'S PROJECT IDEA:\n{idea.strip()}\n"
                 f"{file_context}\n\n"
-                "⚠️ IMPORTANT: This is a CONSULTATION, not implementation. Present clear options and recommendations.\n"
-                "The user will make selections, and THEN the full team will build the actual code in Phase 2."
+                "⚠️ REMEMBER: Present 2-3 clear options. User will SELECT one, then the team builds it.\n"
+                "Keep it concise - user needs to make a quick decision, not read an essay."
             )
             
             try:
@@ -1498,14 +1520,15 @@ def project_execution_page():
             
             # Add user selections to context
             user_selections_context = ""
-            if st.session_state.user_selections:
+            if st.session_state.user_selections and st.session_state.user_selections.get('tech'):
                 sels = st.session_state.user_selections
                 user_selections_context = (
                     "\n\n🎯 USER'S SELECTED PREFERENCES (from consultation):\n"
-                    f"- Tech Stack: {sels.get('tech', 'Not specified')}\n"
-                    f"- Platform: {sels.get('platform', 'Not specified')}\n"
-                    f"- Architecture: {sels.get('architecture', 'Not specified')}\n"
+                    f"- Technology Stack: {sels.get('tech', 'Not specified')}\n"
+                    f"- Deployment Platform: {sels.get('platform', 'As recommended')}\n"
+                    f"- Additional Requirements: {sels.get('additional', 'None')}\n\n"
                     "⚠️ CRITICAL: Build the project using THESE user-selected preferences!\n"
+                    "Use the selected tech stack and platform. Do NOT suggest alternatives.\n"
                 )
             
             # Build deliverables requirements
