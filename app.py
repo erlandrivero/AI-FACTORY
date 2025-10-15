@@ -476,6 +476,14 @@ def project_execution_page():
                 return
 
         st.success("✅ Crew execution complete!")
+        
+        # DEBUG: Show what attributes are available
+        with st.expander("🔍 Debug: Result Object Info", expanded=False):
+            st.write("**Result Type:**", type(result).__name__)
+            st.write("**Available Attributes:**", dir(result))
+            if hasattr(result, '__dict__'):
+                st.write("**Object Contents:**", result.__dict__)
+        
         st.subheader("📄 Final Report")
         
         # Handle different result types from CrewAI
