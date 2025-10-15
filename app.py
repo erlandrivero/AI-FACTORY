@@ -484,31 +484,42 @@ def project_execution_page():
             st.markdown(result)
         else:
             # CrewOutput object (newer CrewAI versions)
-            # Display individual task outputs if available
-            if hasattr(result, 'tasks_output') and result.tasks_output:
-                st.markdown("### 📋 Task Results")
-                for idx, task_output in enumerate(result.tasks_output, 1):
-                    with st.expander(f"Task {idx} Output", expanded=False):
-                        if hasattr(task_output, 'description') and task_output.description:
-                            st.markdown(f"**Description:** {task_output.description}")
-                        if hasattr(task_output, 'summary') and task_output.summary:
-                            st.markdown(f"**Summary:** {task_output.summary}")
-                        if hasattr(task_output, 'raw') and task_output.raw:
-                            st.markdown("**Output:**")
-                            st.markdown(task_output.raw)
-                st.divider()
-            
-            # Display the final aggregated output
-            st.markdown("### 🎯 Final Deliverable")
+            # Try to get the main output first
+            main_output = None
             if hasattr(result, 'raw') and result.raw:
-                st.markdown(result.raw)
+                main_output = result.raw
             elif hasattr(result, 'output') and result.output:
-                st.markdown(result.output)
-            elif hasattr(result, 'result') and result.result:
-                st.markdown(result.result)
+                main_output = result.output
+            elif hasattr(result, 'pydantic') and hasattr(result.pydantic, 'raw'):
+                main_output = result.pydantic.raw
+            
+            # Display the main output prominently
+            if main_output and len(str(main_output).strip()) > 50:
+                st.markdown(main_output)
             else:
-                # Fallback: display the string representation
-                st.markdown(str(result))
+                # If main output is short/empty, check task outputs
+                if hasattr(result, 'tasks_output') and result.tasks_output:
+                    for idx, task_output in enumerate(result.tasks_output, 1):
+                        st.markdown(f"### 📋 Task {idx} Output")
+                        # Try multiple attributes for actual output
+                        task_result = None
+                        if hasattr(task_output, 'raw') and task_output.raw:
+                            task_result = task_output.raw
+                        elif hasattr(task_output, 'output') and task_output.output:
+                            task_result = task_output.output
+                        elif hasattr(task_output, 'result') and task_output.result:
+                            task_result = task_output.result
+                        
+                        if task_result:
+                            st.markdown(task_result)
+                        else:
+                            st.info("No detailed output captured for this task.")
+                        
+                        if idx < len(result.tasks_output):
+                            st.divider()
+                else:
+                    # Ultimate fallback
+                    st.markdown(str(result))
 
 # ------------------------------------------------------------------------------
 # Main Router
