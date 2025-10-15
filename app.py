@@ -476,12 +476,39 @@ def project_execution_page():
                 return
 
         st.success("✅ Crew execution complete!")
-        st.subheader("📄 Final Report")  # Added section title for final output
-        # CrewAI often returns a rich object or a string; handle both
-        if hasattr(result, "raw") and isinstance(result.raw, str):
-            st.markdown(result.raw)
+        st.subheader("📄 Final Report")
+        
+        # Handle different result types from CrewAI
+        if isinstance(result, str):
+            # Simple string result
+            st.markdown(result)
         else:
-            st.markdown(str(result))
+            # CrewOutput object (newer CrewAI versions)
+            # Display individual task outputs if available
+            if hasattr(result, 'tasks_output') and result.tasks_output:
+                st.markdown("### 📋 Task Results")
+                for idx, task_output in enumerate(result.tasks_output, 1):
+                    with st.expander(f"Task {idx} Output", expanded=False):
+                        if hasattr(task_output, 'description') and task_output.description:
+                            st.markdown(f"**Description:** {task_output.description}")
+                        if hasattr(task_output, 'summary') and task_output.summary:
+                            st.markdown(f"**Summary:** {task_output.summary}")
+                        if hasattr(task_output, 'raw') and task_output.raw:
+                            st.markdown("**Output:**")
+                            st.markdown(task_output.raw)
+                st.divider()
+            
+            # Display the final aggregated output
+            st.markdown("### 🎯 Final Deliverable")
+            if hasattr(result, 'raw') and result.raw:
+                st.markdown(result.raw)
+            elif hasattr(result, 'output') and result.output:
+                st.markdown(result.output)
+            elif hasattr(result, 'result') and result.result:
+                st.markdown(result.result)
+            else:
+                # Fallback: display the string representation
+                st.markdown(str(result))
 
 # ------------------------------------------------------------------------------
 # Main Router
