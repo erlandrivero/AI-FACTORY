@@ -169,11 +169,14 @@ div[data-baseweb="select"] svg {
 }
 
 /* Primary and secondary base buttons (newer Streamlit) */
-button[data-testid="baseButton-primary"] {
+button[data-testid="baseButton-primary"],
+button[kind="primary"],
+.stForm button[type="submit"] {
   background: var(--accent) !important;
-  color: #fff !important;
+  color: #ffffff !important;
   border: 1px solid transparent !important;
   border-radius: 12px !important;
+  font-weight: 600 !important;
 }
 button[data-testid="baseButton-secondary"] {
   background: var(--surface-2) !important;
@@ -181,8 +184,44 @@ button[data-testid="baseButton-secondary"] {
   border: 1px solid var(--border) !important;
   border-radius: 12px !important;
 }
-button[data-testid="baseButton-primary"]:hover {
+button[data-testid="baseButton-primary"]:hover,
+button[kind="primary"]:hover,
+.stForm button[type="submit"]:hover {
   background: var(--accent-hover) !important;
+}
+
+/* Form help icons and text */
+.stCheckbox label span,
+[data-testid="stCaptionContainer"],
+.stCheckbox [data-testid="stMarkdownContainer"] {
+  color: var(--text) !important;
+}
+
+/* Help icons - make them visible */
+svg.info-icon,
+.stCheckbox svg,
+.stSelectbox svg[data-testid="stTooltipHoverTarget"],
+.stTextInput svg[data-testid="stTooltipHoverTarget"],
+.stTextArea svg[data-testid="stTooltipHoverTarget"],
+[data-testid="stTooltipHoverTarget"] svg,
+.st-emotion-cache-1gulkj5 svg {
+  fill: var(--text) !important;
+  color: var(--text) !important;
+  opacity: 0.7 !important;
+}
+
+/* Help icon container */
+[data-testid="stTooltipHoverTarget"] {
+  color: var(--text) !important;
+  opacity: 0.7 !important;
+}
+
+/* Ensure help icons are visible in all contexts */
+.stSelectbox [data-testid="stTooltipHoverTarget"],
+.stTextInput [data-testid="stTooltipHoverTarget"],
+.stCheckbox [data-testid="stTooltipHoverTarget"] {
+  display: inline-flex !important;
+  visibility: visible !important;
 }
 
 /* Alerts and info boxes */
@@ -622,8 +661,8 @@ def agent_management_page():
             role = st.text_input("Role*", placeholder="e.g., Orchestrator Agent")
             allow_delegation = st.checkbox(
                 "Allow Delegation",
-                value=True,
-                help="If enabled, the agent can delegate work to others."
+                value=False,
+                help="✨ If enabled, the agent can delegate work to others. Recommended for Orchestrator agents."
             )
         with col2:
             goal = st.text_input("Goal*", placeholder="e.g., Coordinate and deliver projects end-to-end")
@@ -633,7 +672,7 @@ def agent_management_page():
             placeholder="Brief background/personality to guide how this agent behaves."
         )
 
-        submitted = st.form_submit_button("💾 Save Agent")
+        submitted = st.form_submit_button("💾 Save Agent", use_container_width=True, type="primary")
         if submitted:
             if not role.strip() or not goal.strip() or not backstory.strip():
                 st.error("Please fill in Role, Goal, and Backstory.")
