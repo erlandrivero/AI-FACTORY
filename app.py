@@ -325,6 +325,37 @@ textarea {
   color: var(--text-muted) !important;
   background: transparent !important;
 }
+
+/* File uploader */
+[data-testid="stFileUploader"] {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 12px !important;
+  padding: 1rem !important;
+}
+[data-testid="stFileUploader"] section {
+  background: var(--surface-2) !important;
+  border: 2px dashed var(--border) !important;
+  border-radius: 10px !important;
+}
+[data-testid="stFileUploader"] section:hover {
+  border-color: var(--accent) !important;
+}
+[data-testid="stFileUploader"] button {
+  background: var(--accent) !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+}
+[data-testid="stFileUploader"] button:hover {
+  background: var(--accent-hover) !important;
+}
+[data-testid="stFileUploader"] small,
+[data-testid="stFileUploader"] label,
+[data-testid="stFileUploader"] p {
+  color: var(--text) !important;
+}
 </style>
 """
 st.markdown(DARK_CSS, unsafe_allow_html=True)
@@ -397,6 +428,112 @@ def format_time(seconds: int) -> str:
         if remaining_minutes == 0:
             return f"{hours} hour{'s' if hours != 1 else ''}"
         return f"{hours} hour{'s' if hours != 1 else ''} {remaining_minutes} minute{'s' if remaining_minutes != 1 else ''}"
+
+def parse_uploaded_file(uploaded_file) -> Dict[str, Any]:
+    """Parse uploaded file and extract content."""
+    file_name = uploaded_file.name
+    file_type = file_name.split('.')[-1].lower()
+    
+    try:
+        if file_type == 'ipynb':
+            # Parse Jupyter notebook
+            content = json.loads(uploaded_file.read().decode('utf-8'))
+            cells = content.get('cells', [])
+            text_content = []
+            for cell in cells:
+                cell_type = cell.get('cell_type', '')
+                source = ''.join(cell.get('source', []))
+                if cell_type == 'markdown':
+                    text_content.append(f"### Markdown Cell\n{source}\n")
+                elif cell_type == 'code':
+                    text_content.append(f"### Code Cell\n```python\n{source}\n```\n")
+            return {
+                'name': file_name,
+                'type': 'Jupyter Notebook',
+                'content': '\n'.join(text_content),
+                'icon': '📓'
+            }
+        
+        elif file_type in ['md', 'markdown']:
+            content = uploaded_file.read().decode('utf-8')
+            return {
+                'name': file_name,
+                'type': 'Markdown',
+                'content': content,
+                'icon': '📝'
+            }
+        
+        elif file_type == 'csv':
+            content = uploaded_file.read().decode('utf-8')
+            lines = content.split('\n')[:20]  # Preview first 20 lines
+            preview = '\n'.join(lines)
+            return {
+                'name': file_name,
+                'type': 'CSV Data',
+                'content': f"CSV File Preview (first 20 rows):\n```\n{preview}\n```\n\nNote: Full dataset available for analysis.",
+                'icon': '📊'
+            }
+        
+        elif file_type == 'txt':
+            content = uploaded_file.read().decode('utf-8')
+            return {
+                'name': file_name,
+                'type': 'Text File',
+                'content': content,
+                'icon': '📄'
+            }
+        
+        elif file_type == 'py':
+            content = uploaded_file.read().decode('utf-8')
+            return {
+                'name': file_name,
+                'type': 'Python Code',
+                'content': f"```python\n{content}\n```",
+                'icon': '🐍'
+            }
+        
+        elif file_type == 'json':
+            content = json.loads(uploaded_file.read().decode('utf-8'))
+            formatted = json.dumps(content, indent=2)
+            return {
+                'name': file_name,
+                'type': 'JSON Data',
+                'content': f"```json\n{formatted}\n```",
+                'icon': '📋'
+            }
+        
+        else:
+            # Try to read as text
+            content = uploaded_file.read().decode('utf-8', errors='ignore')
+            return {
+                'name': file_name,
+                'type': 'File',
+                'content': content[:5000],  # Limit to 5000 chars
+                'icon': '📎'
+            }
+    
+    except Exception as e:
+        return {
+            'name': file_name,
+            'type': 'Error',
+            'content': f"Could not parse file: {str(e)}",
+            'icon': '⚠️'
+        }
+
+def build_context_from_files(files_data: List[Dict[str, Any]]) -> str:
+    """Build context string from uploaded files."""
+    if not files_data:
+        return ""
+    
+    context_parts = ["\n\n---\n## 📚 Background Materials & Reference Documents\n"]
+    context_parts.append("The following files have been provided as background knowledge for this project:\n")
+    
+    for idx, file_data in enumerate(files_data, 1):
+        context_parts.append(f"\n### {file_data['icon']} File {idx}: {file_data['name']} ({file_data['type']})\n")
+        context_parts.append(file_data['content'])
+        context_parts.append("\n---\n")
+    
+    return ''.join(context_parts)
 
 # ------------------------------------------------------------------------------
 # Deployment Helper Functions
@@ -737,7 +874,30 @@ def project_execution_page():
         key="project_idea_input",
     )
     
-    # Launch button right below the text area for better UX
+    # File upload section
+    st.subheader("📚 Background Materials (Optional)")
+    st.caption("Upload reference files for agents to review (notebooks, docs, datasets, code, etc.)")
+    
+    uploaded_files = st.file_uploader(
+        "Upload files",
+        type=['ipynb', 'md', 'markdown', 'csv', 'txt', 'py', 'json'],
+        accept_multiple_files=True,
+        help="Upload Jupyter notebooks, markdown files, datasets, or code for context",
+        label_visibility="collapsed"
+    )
+    
+    # Parse and display uploaded files
+    files_data = []
+    if uploaded_files:
+        st.write(f"**{len(uploaded_files)} file(s) uploaded:**")
+        cols = st.columns(min(len(uploaded_files), 3))
+        for idx, uploaded_file in enumerate(uploaded_files):
+            parsed = parse_uploaded_file(uploaded_file)
+            files_data.append(parsed)
+            with cols[idx % 3]:
+                st.info(f"{parsed['icon']} **{parsed['name']}**\n\n{parsed['type']}")
+    
+    # Launch button right below the file upload for better UX
     col1, col2, col3 = st.columns([2, 1, 2])
     with col2:
         launch = st.button(
@@ -807,6 +967,9 @@ def project_execution_page():
                 st.error("Hierarchical mode requires an Orchestrator Agent. Create an agent with 'Orchestrator' in the role name.")
                 return
             
+            # Build context from uploaded files
+            file_context = build_context_from_files(files_data)
+            
             # Single high-level task for orchestrator
             task_description = (
                 "You are the Orchestrator for this project. Analyze the user's idea, "
@@ -814,6 +977,7 @@ def project_execution_page():
                 "Delegate to other available agents as needed. "
                 "Deliver a final, cohesive result, including the plan, key decisions, artifacts, and next steps.\n\n"
                 f"User's idea:\n{idea.strip()}"
+                f"{file_context}"
             )
             tasks.append(Task(
                 description=task_description,
@@ -831,6 +995,9 @@ def project_execution_page():
             manager_agent = build_crewai_agent(orchestrator_profile)
             
         elif process_type == "Sequential":
+            # Build context from uploaded files
+            file_context = build_context_from_files(files_data)
+            
             # Sequential: Create a task for each agent in order
             crew_process = Process.sequential
             for agent_profile in saved_agents:
@@ -839,6 +1006,7 @@ def project_execution_page():
                     f"Build upon previous work if available.\n\n"
                     f"Project idea: {idea.strip()}\n\n"
                     f"Your goal: {agent_profile.get('goal', 'Contribute to the project')}"
+                    f"{file_context}"
                 )
                 tasks.append(Task(
                     description=task_desc,
@@ -847,6 +1015,9 @@ def project_execution_page():
                 ))
                 
         else:  # Consensus
+            # Build context from uploaded files
+            file_context = build_context_from_files(files_data)
+            
             # Consensus: Each agent contributes to collaborative solution
             crew_process = Process.sequential
             for agent_profile in saved_agents:
@@ -856,6 +1027,7 @@ def project_execution_page():
                     f"Work toward a consensus solution that incorporates all viewpoints.\n\n"
                     f"Project idea: {idea.strip()}\n\n"
                     f"Your goal: {agent_profile.get('goal', 'Contribute collaboratively')}"
+                    f"{file_context}"
                 )
                 tasks.append(Task(
                     description=task_desc,
