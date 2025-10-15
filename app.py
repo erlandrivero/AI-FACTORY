@@ -1296,11 +1296,14 @@ def project_execution_page():
     # Show consultation results if we have them
     if st.session_state.consultation_result:
         st.success("✅ Orchestrator has analyzed your project!")
-        with st.expander("👁️ View Consultation Analysis", expanded=False):
-            st.markdown(st.session_state.consultation_result)
+        
+        st.subheader("📊 Consultation Results")
+        st.markdown(st.session_state.consultation_result)
+        
+        st.divider()
         
         st.subheader("🎯 Make Your Selections")
-        st.caption("Click to select your preferences based on the consultation above")
+        st.caption("Review the options above and select your preferences below")
         
         # Interactive selectors
         col_sel1, col_sel2 = st.columns(2)
