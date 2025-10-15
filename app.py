@@ -297,6 +297,21 @@ h1, h2, h3, h4, h5, h6, label, p, li, span {
 /* Text area sizing for nicer look */
 textarea {
   line-height: 1.45 !important;
+  pointer-events: auto !important;
+  cursor: text !important;
+  user-select: text !important;
+}
+.stTextArea textarea {
+  pointer-events: auto !important;
+  cursor: text !important;
+  user-select: text !important;
+}
+/* Ensure text area container doesn't block clicks */
+.stTextArea, [data-testid="stTextArea"] {
+  pointer-events: auto !important;
+}
+.stTextArea > div, [data-testid="stTextArea"] > div {
+  pointer-events: auto !important;
 }
 
 /* Hide the "Press Ctrl+Enter to apply" hint in text areas */
