@@ -19,6 +19,8 @@
 
 import json
 import os
+import time
+from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any
 from uuid import uuid4
@@ -467,22 +469,23 @@ def project_execution_page():
             manager_agent=build_crewai_agent(orchestrator_profile),
         )
 
-        # Run with a spinner and display results
-        with st.spinner("🧪 The crew is working... orchestrating, delegating, and synthesizing results."):
-            try:
-                result = crew.kickoff()
-            except Exception as e:
-                st.error(f"❌ Crew execution failed: {e}")
-                return
-
-        st.success("✅ Crew execution complete!")
+        # Run with time tracking and visual feedback
+        start_time = time.time()
+        progress_placeholder = st.empty()
         
-        # DEBUG: Show what attributes are available
-        with st.expander("🔍 Debug: Result Object Info", expanded=False):
-            st.write("**Result Type:**", type(result).__name__)
-            st.write("**Available Attributes:**", dir(result))
-            if hasattr(result, '__dict__'):
-                st.write("**Object Contents:**", result.__dict__)
+        with progress_placeholder:
+            with st.spinner("🧪 The crew is working..."):
+                st.info("⚙️ **Status:** Orchestrator analyzing, delegating, and coordinating agents...")
+                try:
+                    result = crew.kickoff()
+                except Exception as e:
+                    st.error(f"❌ Crew execution failed: {e}")
+                    return
+        
+        # Show completion time
+        elapsed_time = int(time.time() - start_time)
+        progress_placeholder.empty()
+        st.success(f"✅ Crew execution complete! (Completed in {elapsed_time} seconds)")
         
         st.subheader("📄 Final Report")
         
@@ -504,6 +507,16 @@ def project_execution_page():
             # Display the main output prominently
             if main_output and len(str(main_output).strip()) > 50:
                 st.markdown(main_output)
+                
+                # Add export button
+                report_text = str(main_output)
+                st.download_button(
+                    label="📥 Download Report (Markdown)",
+                    data=report_text,
+                    file_name=f"ai_factory_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
+                    mime="text/markdown",
+                    use_container_width=True,
+                )
             else:
                 # If main output is short/empty, check task outputs
                 if hasattr(result, 'tasks_output') and result.tasks_output:
@@ -525,9 +538,30 @@ def project_execution_page():
                         
                         if idx < len(result.tasks_output):
                             st.divider()
+                    
+                    # Add download button for combined task outputs
+                    combined_output = "\n\n---\n\n".join([
+                        f"## Task {i+1} Output\n\n{getattr(t, 'raw', getattr(t, 'output', str(t)))}"
+                        for i, t in enumerate(result.tasks_output)
+                    ])
+                    st.download_button(
+                        label="📥 Download All Task Outputs (Markdown)",
+                        data=combined_output,
+                        file_name=f"ai_factory_tasks_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
+                        mime="text/markdown",
+                        use_container_width=True,
+                    )
                 else:
                     # Ultimate fallback
-                    st.markdown(str(result))
+                    result_text = str(result)
+                    st.markdown(result_text)
+                    st.download_button(
+                        label="📥 Download Report",
+                        data=result_text,
+                        file_name=f"ai_factory_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+                        mime="text/plain",
+                        use_container_width=True,
+                    )
 
 # ------------------------------------------------------------------------------
 # Main Router
