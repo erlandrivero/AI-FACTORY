@@ -2086,135 +2086,24 @@ def build_crewai_agent(profile: Dict[str, Any]) -> Agent:
     )
 
 # ------------------------------------------------------------------------------
-# Helper: Intelligent API Key Detection
+# Helper: Simple API Key Placeholder (Let Agents Decide)
 # ------------------------------------------------------------------------------
-def detect_api_keys_for_stack(package_name: str, full_strategy_text: str, additional_features: str = "", special_requirements: str = "") -> tuple:
+def get_common_api_key_placeholders() -> tuple:
     """
-    Intelligently detect required and optional API keys based on the selected package.
-    Analyzes the package content to extract tech stack details.
-    
-    Args:
-        package_name: The selected package name (e.g., "Package A")
-        full_strategy_text: The content of the selected package
-        additional_features: User's additional feature requests
-        special_requirements: User's special requirements
+    Provides common API key placeholders. 
+    NO hardcoded detection - users can add any keys they need.
+    Agents will intelligently determine which keys to use during the build.
     
     Returns: (required_keys_dict, optional_keys_dict)
-    
-    Note: User's additional features and requirements take priority over package defaults.
     """
-    required_keys = {}
-    optional_keys = {}
-    
-    # Combine all text for analysis - USER INPUT TAKES PRIORITY
-    combined_text = f"{package_name.lower()} {full_strategy_text.lower()} {additional_features.lower()} {special_requirements.lower()}"
-    
-    # ========== TECH STACK SPECIFIC DETECTION ==========
-    
-    # MERN Stack (MongoDB, Express, React, Node.js)
-    if "mern" in combined_text or ("mongodb" in combined_text and "react" in combined_text and "express" in combined_text):
-        optional_keys["MongoDB Atlas URI"] = "MongoDB connection string (mongodb+srv://user:pass@cluster.mongodb.net/dbname)"
-        optional_keys["JWT Secret"] = "Secret key for JWT token generation (authentication)"
-        optional_keys["Port"] = "Server port (default: 5000 or 3000)"
-    
-    # MEAN Stack (MongoDB, Express, Angular, Node.js)
-    if "mean" in combined_text or ("mongodb" in combined_text and "angular" in combined_text):
-        optional_keys["MongoDB Atlas URI"] = "MongoDB connection string"
-        optional_keys["JWT Secret"] = "Secret key for authentication tokens"
-    
-    # PERN Stack (PostgreSQL, Express, React, Node.js)
-    if "pern" in combined_text or ("postgresql" in combined_text and "react" in combined_text):
-        optional_keys["PostgreSQL Database URL"] = "PostgreSQL connection (postgresql://user:pass@host:5432/db)"
-        optional_keys["JWT Secret"] = "Secret for JWT authentication"
-    
-    # Next.js
-    if "next" in combined_text or "nextjs" in combined_text:
-        optional_keys["NEXT_PUBLIC_API_URL"] = "Public API URL for client-side requests"
-    
-    # Django
-    if "django" in combined_text:
-        optional_keys["Django Secret Key"] = "Django SECRET_KEY for security"
-        optional_keys["Database URL"] = "Database connection string"
-    
-    # Flask
-    if "flask" in combined_text:
-        optional_keys["Flask Secret Key"] = "Flask SECRET_KEY for sessions"
-        optional_keys["Database URI"] = "SQLAlchemy database URI"
-    
-    # ========== DATABASE DETECTION ==========
-    
-    if "supabase" in combined_text:
-        required_keys["Supabase Project URL"] = "Your Supabase project URL (https://xxxxx.supabase.co)"
-        required_keys["Supabase Anon Key"] = "Your Supabase anonymous/public API key"
-    
-    if "firebase" in combined_text:
-        required_keys["Firebase Config JSON"] = "Your Firebase configuration object"
-    
-    if "mongodb" in combined_text and "MongoDB Atlas URI" not in optional_keys:
-        optional_keys["MongoDB Connection String"] = "MongoDB URI (mongodb+srv://...)"
-    
-    if ("postgres" in combined_text or "postgresql" in combined_text) and "PostgreSQL" not in str(optional_keys):
-        optional_keys["PostgreSQL URL"] = "PostgreSQL connection (postgresql://...)"
-    
-    if "mysql" in combined_text:
-        optional_keys["MySQL Connection String"] = "MySQL database connection"
-    
-    # ========== DEPLOYMENT PLATFORM ==========
-    
-    if "netlify" in combined_text:
-        optional_keys["Netlify API Token"] = "For automated deployments (app.netlify.com → Personal access tokens)"
-    
-    if "vercel" in combined_text:
-        optional_keys["Vercel Token"] = "For automated deployments (vercel.com/account/tokens)"
-    
-    if "railway" in combined_text:
-        optional_keys["Railway Token"] = "For Railway deployments (railway.app/account/tokens)"
-    
-    if "render" in combined_text:
-        optional_keys["Render API Key"] = "For Render deployments (dashboard.render.com)"
-    
-    if "heroku" in combined_text:
-        optional_keys["Heroku API Key"] = "For Heroku deployments"
-    
-    if "aws" in combined_text or "amazon web services" in combined_text:
-        optional_keys["AWS Access Key ID"] = "AWS access key for deployments"
-        optional_keys["AWS Secret Access Key"] = "AWS secret key"
-    
-    if "digitalocean" in combined_text:
-        optional_keys["DigitalOcean Token"] = "DigitalOcean API token"
-    
-    # ========== SERVICE INTEGRATIONS ==========
-    
-    if "openai" in combined_text or "gpt" in combined_text or "chatgpt" in combined_text:
-        optional_keys["OpenAI API Key"] = "For AI features (platform.openai.com/api-keys)"
-    
-    if "stripe" in combined_text or "payment" in combined_text:
-        optional_keys["Stripe API Key"] = "For payments (dashboard.stripe.com/apikeys)"
-        optional_keys["Stripe Webhook Secret"] = "For webhook verification"
-    
-    if "sendgrid" in combined_text or ("email" in combined_text and "send" in combined_text):
-        optional_keys["SendGrid API Key"] = "For email sending (sendgrid.com/api-keys)"
-    
-    if "twilio" in combined_text or "sms" in combined_text:
-        optional_keys["Twilio Account SID"] = "Twilio account SID"
-        optional_keys["Twilio Auth Token"] = "Twilio auth token"
-    
-    if "cloudinary" in combined_text or "image upload" in combined_text or "media upload" in combined_text:
-        optional_keys["Cloudinary Cloud Name"] = "Cloudinary cloud name"
-        optional_keys["Cloudinary API Key"] = "Cloudinary API key"
-        optional_keys["Cloudinary API Secret"] = "Cloudinary API secret"
-    
-    if "google" in combined_text and "auth" in combined_text:
-        optional_keys["Google OAuth Client ID"] = "For Google sign-in"
-        optional_keys["Google OAuth Client Secret"] = "Google OAuth secret"
-    
-    if "github" in combined_text and "auth" in combined_text:
-        optional_keys["GitHub OAuth Client ID"] = "For GitHub authentication"
-        optional_keys["GitHub OAuth Client Secret"] = "GitHub OAuth secret"
-    
-    # ========== ALWAYS USEFUL (Only if CI/CD mentioned) ==========
-    if "ci/cd" in combined_text or "github actions" in combined_text or "automation" in combined_text:
-        optional_keys["GitHub Personal Access Token"] = "For CI/CD automation (github.com/settings/tokens)"
+    required_keys = {}  # No required keys - make everything optional
+    optional_keys = {
+        # Generic placeholders - users add what they need, agents figure out how to use them
+        "Database Connection String": "e.g., MongoDB URI, PostgreSQL URL, MySQL connection",
+        "API Secret Key": "e.g., JWT secret, Flask secret key, Django secret",
+        "Deployment Platform Token": "e.g., Netlify token, Vercel token, Render key",
+        "Third-Party API Key": "e.g., Stripe, OpenAI, SendGrid, Twilio, etc."
+    }
     
     return required_keys, optional_keys
 
@@ -2574,73 +2463,31 @@ def project_execution_page():
         
         st.divider()
         
-        # Extract only the chosen package's content from all strategy options
-        chosen_package_content = ""
-        if st.session_state.strategy_options and st.session_state.chosen_strategy:
-            full_text = st.session_state.strategy_options
-            # Try to extract the specific package section
-            package_marker = st.session_state.chosen_strategy  # e.g., "Package A", "Package B"
-            if package_marker in full_text:
-                # Find the start of this package
-                start_idx = full_text.find(package_marker)
-                # Find the next package marker or end of text
-                next_package_markers = ["## Package", "### Package", "**Package"]
-                end_idx = len(full_text)
-                for marker in next_package_markers:
-                    next_idx = full_text.find(marker, start_idx + len(package_marker))
-                    if next_idx != -1 and next_idx < end_idx:
-                        end_idx = next_idx
-                chosen_package_content = full_text[start_idx:end_idx]
-            else:
-                # Fallback: use the full text (less precise)
-                chosen_package_content = full_text
+        st.info("💡 **Tip:** Paste any API keys, connection strings, or configuration you have ready. The AI agents will analyze your requirements and use them appropriately. You can skip this entirely and add keys during deployment.")
         
-        # Use intelligent API key detection with only the selected package
-        # Include user's additional features and requirements for more accurate detection
-        additional_features = st.session_state.user_selections.get('additional_features', '')
-        special_requirements = st.session_state.user_selections.get('special_requirements', '')
+        # Free-form configuration input - let users paste whatever they have
+        st.markdown("### 🔑 Configuration & API Keys (Optional)")
+        st.caption("Provide any keys, tokens, or connection strings you want to use. Format: one per line or JSON")
         
-        required_keys, optional_keys = detect_api_keys_for_stack(
-            st.session_state.chosen_strategy,
-            chosen_package_content,
-            additional_features,
-            special_requirements
+        if 'config_input' not in st.session_state:
+            st.session_state.config_input = ""
+        
+        config_input = st.text_area(
+            "Paste your configuration here",
+            value=st.session_state.config_input,
+            height=200,
+            placeholder="""Examples:
+MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/db
+JWT_SECRET=your_secret_key_here
+NETLIFY_TOKEN=nJYL12345...
+STRIPE_KEY=sk_test_123...
+
+Or paste as JSON, YAML, or any format - agents will parse it.""",
+            help="Agents will intelligently extract and use these in your application",
+            key="api_config_textarea"
         )
         
-        st.info("💡 **Tip:** These API keys are detected based on your selected package. You can skip this step and add them later during deployment. The agents will use these to configure your application properly.")
-        
-        # API Keys Input (non-form for better styling)
-        st.markdown("### 🔑 Required API Keys")
-        if required_keys:
-            if 'api_key_inputs' not in st.session_state:
-                st.session_state.api_key_inputs = {}
-            
-            for key_name, key_help in required_keys.items():
-                st.session_state.api_key_inputs[key_name] = st.text_input(
-                    f"🔴 {key_name} (Required)",
-                    value=st.session_state.api_key_inputs.get(key_name, ""),
-                    type="password",
-                    help=key_help,
-                    key=f"required_{key_name.replace(' ', '_').replace('/', '_').lower()}"
-                )
-        else:
-            st.success("✅ No required API keys detected for your chosen stack!")
-        
-        st.markdown("### 🔓 Optional API Keys")
-        st.caption("💡 Fill in only the API keys you want to use. The agents will create placeholder configuration for any skipped keys.")
-        
-        if optional_keys:
-            if 'api_key_inputs' not in st.session_state:
-                st.session_state.api_key_inputs = {}
-            
-            for key_name, key_help in optional_keys.items():
-                st.session_state.api_key_inputs[key_name] = st.text_input(
-                    f"⚪ {key_name} (Optional)",
-                    value=st.session_state.api_key_inputs.get(key_name, ""),
-                    type="password",
-                    help=key_help,
-                    key=f"optional_{key_name.replace(' ', '_').replace('/', '_').lower()}"
-                )
+        st.session_state.config_input = config_input
         
         st.divider()
         
@@ -2665,24 +2512,15 @@ def project_execution_page():
                 key="continue_from_config_btn",
                 use_container_width=True
             ):
-                # Validate required keys
-                if required_keys:
-                    missing_keys = [k for k in required_keys.keys() if not st.session_state.api_key_inputs.get(k, "").strip()]
-                    if missing_keys:
-                        st.error(f"❌ Please fill in all required API keys: {', '.join(missing_keys)}")
-                        st.stop()
-                
-                # Store all API keys
-                api_keys = {}
-                for key_name, value in st.session_state.api_key_inputs.items():
-                    if value and value.strip():
-                        api_keys[key_name] = value.strip()
-                
-                st.session_state.api_keys = api_keys
+                # Store the raw config - agents will parse it
+                st.session_state.raw_config = config_input.strip() if config_input else ""
                 
                 # Move to building phase
                 st.session_state.phase = 'building'
-                st.success(f"✅ Configured {len(api_keys)} API key(s). Proceeding to build...")
+                if st.session_state.raw_config:
+                    st.success(f"✅ Configuration saved. Proceeding to build...")
+                else:
+                    st.info("⏭️ No configuration provided. Agents will use defaults.")
                 time.sleep(0.5)
                 st.rerun()
         
@@ -2691,10 +2529,10 @@ def project_execution_page():
         # Skip option with centered button
         col_skip1, col_skip2, col_skip3 = st.columns([1, 1, 1])
         with col_skip2:
-            if st.button("⏭️ Skip & Build", help="Skip API key configuration and proceed", key="skip_api_keys_btn", use_container_width=True):
-                st.session_state.api_keys = {}
+            if st.button("⏭️ Skip & Build", help="Skip configuration and proceed", key="skip_config_btn", use_container_width=True):
+                st.session_state.raw_config = ""
                 st.session_state.phase = 'building'
-                st.info("⏭️ Skipped API key configuration. You can add them during deployment.")
+                st.info("⏭️ Skipped configuration. Agents will create placeholder values.")
                 time.sleep(0.5)
                 st.rerun()
     
@@ -2713,8 +2551,8 @@ def project_execution_page():
                 st.write(f"**Additional Features:** {st.session_state.user_selections['additional_features']}")
             if st.session_state.user_selections.get('special_requirements'):
                 st.write(f"**Special Requirements:** {st.session_state.user_selections['special_requirements']}")
-            api_keys_count = len(st.session_state.get('api_keys', {}))
-            st.write(f"**API Keys Configured:** {api_keys_count}")
+            config_provided = "Yes" if st.session_state.get('raw_config') else "No"
+            st.write(f"**Configuration Provided:** {config_provided}")
             files_count = len(st.session_state.uploaded_files_data)
             st.write(f"**Reference Files:** {files_count}")
         
@@ -2741,50 +2579,43 @@ def project_execution_page():
         # Build comprehensive context
         file_context = build_context_from_files(st.session_state.uploaded_files_data)
         
-        # Format API keys for the task
-        api_keys_context = ""
-        if st.session_state.get('api_keys') and len(st.session_state.api_keys) > 0:
-            api_keys_context = "\n\n## 🔑 Provided API Keys & Configuration\n\n"
-            api_keys_context += "The user has provided the following API keys/configuration that **MUST** be integrated into the application:\n\n"
-            
-            api_key_list = []
-            env_variables = []
-            
-            for key_name, key_value in st.session_state.api_keys.items():
-                # Show key name and masked value for security
-                masked_value = key_value[:4] + "..." + key_value[-4:] if len(key_value) > 8 else "***"
-                api_key_list.append(f"- **{key_name}**: `{masked_value}` (provided by user)")
-                
-                # Convert to environment variable format
-                env_var_name = key_name.upper().replace(' ', '_').replace('-', '_')
-                env_variables.append(f"{env_var_name}={key_value}")
-            
-            api_keys_context += "\n".join(api_key_list)
-            api_keys_context += "\n\n### 🔧 Integration Instructions\n\n"
-            api_keys_context += "1. **Create `.env.example`** file with placeholder values for all keys\n"
-            api_keys_context += "2. **Show how to use these keys** in your application code (e.g., environment variables, config files)\n"
-            api_keys_context += "3. **Document each key's purpose** in the README\n"
-            api_keys_context += "4. **Include setup instructions** in the deployment guide\n"
-            api_keys_context += "\n**Environment Variables Format:**\n```\n"
-            api_keys_context += "\n".join(env_variables[:3])  # Show first 3 as example
-            if len(env_variables) > 3:
-                api_keys_context += f"\n# ... and {len(env_variables) - 3} more\n"
-            api_keys_context += "```\n"
+        # Format configuration for agents - pass raw, let them parse
+        config_context = ""
+        if st.session_state.get('raw_config'):
+            config_context = f"\n\n## 🔑 User-Provided Configuration\n\n"
+            config_context += "The user has provided the following configuration/API keys:\n\n"
+            config_context += "```\n"
+            config_context += st.session_state.raw_config
+            config_context += "\n```\n\n"
+            config_context += "### Your Responsibilities:\n"
+            config_context += "1. **Parse intelligently**: Extract keys, tokens, connection strings from above\n"
+            config_context += "2. **Integrate properly**: Use these values in your `.env.example` and application code\n"
+            config_context += "3. **Document clearly**: Explain in README what each configuration does\n"
+            config_context += "4. **Add placeholders**: For any keys you think are needed but weren't provided\n"
         else:
-            api_keys_context = "\n\n## 🔑 API Keys & Configuration\n\n"
-            api_keys_context += "No API keys were provided by the user. You should:\n"
-            api_keys_context += "1. Include a `.env.example` file with placeholder values for common services\n"
-            api_keys_context += "2. Document which API keys the application needs in the README\n"
-            api_keys_context += "3. Show where to obtain these keys in the setup guide\n"
+            config_context = "\n\n## 🔑 Configuration\n\n"
+            config_context += "No configuration was provided. You should:\n"
+            config_context += "1. Analyze the project requirements and determine needed API keys/config\n"
+            config_context += "2. Create `.env.example` with intelligent placeholder values\n"
+            config_context += "3. Document in README which services need API keys and where to get them\n"
         
-        # Format additional requirements
+        # Format additional requirements - THESE ARE COMMANDS, NOT SUGGESTIONS
         additional_context = ""
         if st.session_state.user_selections.get('additional_features'):
-            additional_context += f"\n\n## ✨ Additional Features Requested (HIGH PRIORITY)\n\n{st.session_state.user_selections['additional_features']}\n\n"
-            additional_context += "⚠️ **IMPORTANT**: These additional features MODIFY the base package. If they mention different technologies (e.g., MongoDB instead of PostgreSQL), you MUST use the user's specified technology.\n"
+            additional_context += f"\n\n## ✨ USER'S ADDITIONAL FEATURES (🚨 MANDATORY - NOT OPTIONAL)\n\n"
+            additional_context += f"**User explicitly requested:**\n\n{st.session_state.user_selections['additional_features']}\n\n"
+            additional_context += "🚨 **THIS IS A COMMAND, NOT A SUGGESTION**:\n"
+            additional_context += "- If user says 'MongoDB' → Use MongoDB (even if package says PostgreSQL)\n"
+            additional_context += "- If user says 'Netlify' → Deploy to Netlify (even if package says DigitalOcean)\n"
+            additional_context += "- If user says 'GraphQL' → Build GraphQL API (even if package says REST)\n"
+            additional_context += "- User's words = Your instructions. Follow them EXACTLY.\n"
         if st.session_state.user_selections.get('special_requirements'):
-            additional_context += f"\n\n## ⚙️ Special Requirements (MUST IMPLEMENT)\n\n{st.session_state.user_selections['special_requirements']}\n\n"
-            additional_context += "⚠️ **IMPORTANT**: These requirements OVERRIDE package defaults. If there's a conflict between the package and user requirements, ALWAYS follow the user's requirements.\n"
+            additional_context += f"\n\n## ⚙️ USER'S SPECIAL REQUIREMENTS (🚨 MANDATORY - NOT OPTIONAL)\n\n"
+            additional_context += f"**User explicitly requested:**\n\n{st.session_state.user_selections['special_requirements']}\n\n"
+            additional_context += "🚨 **THIS IS A COMMAND, NOT A SUGGESTION**:\n"
+            additional_context += "- These requirements OVERRIDE everything else\n"
+            additional_context += "- If there's ANY conflict with the base package → User wins\n"
+            additional_context += "- Implement EXACTLY as user described\n"
         
         # Build the comprehensive task description
         orchestrator_task_desc = f"""
@@ -2803,21 +2634,85 @@ You are the Orchestrator leading a team of specialist agents to build a complete
 **IMPORTANT**: This is the BASE package. However, if the user has specified additional features or special requirements below that mention different technologies, YOU MUST use the user's specified technologies instead.
 
 **Example**: If the package suggests PostgreSQL but the user's additional features mention "MongoDB", you MUST use MongoDB, not PostgreSQL.
-{api_keys_context}
+{config_context}
 {additional_context}
 {file_context}
 
-## 🎯 TECHNOLOGY PRIORITY RULES
+## ⚠️ CRITICAL: TECHNOLOGY CONFLICT RESOLUTION RULES
 
-When there's a conflict between the base package and user input:
-1. **User's Additional Features** = HIGHEST PRIORITY (overrides package)
-2. **User's Special Requirements** = HIGHEST PRIORITY (overrides package)
-3. **Base Package Strategy** = Use only if no conflicts with user input
+You MUST analyze the user's Additional Features and Special Requirements and intelligently resolve any conflicts with the base package.
 
-**Examples of User Overrides**:
-- Package says "PostgreSQL" + User says "use MongoDB" → USE MONGODB ✅
-- Package says "Railway" + User says "deploy to Vercel" → USE VERCEL ✅
-- Package says "REST API" + User says "use GraphQL" → USE GRAPHQL ✅
+### Decision-Making Process:
+
+**STEP 1: Identify User's Technology Choices**
+Read the "Additional Features" and "Special Requirements" sections carefully. Extract ANY technology mentions:
+- Databases: MongoDB, PostgreSQL, MySQL, Firebase, Supabase, etc.
+- Deployment: Netlify, Vercel, Render, Railway, Heroku, AWS, DigitalOcean, etc.
+- APIs: REST, GraphQL, etc.
+- Auth: JWT, OAuth, Session-based, etc.
+
+**STEP 2: Compare with Base Package**
+Check if the user's choices conflict with the base package.
+
+**STEP 3: Apply Priority Rules**
+```
+IF (user mentions a technology) THEN
+    USE user's technology
+    IGNORE package's conflicting technology
+ELSE
+    USE package's technology
+END IF
+```
+
+### Real-World Examples:
+
+**Example 1: Database Override**
+```
+Base Package: "Backend: Flask (Python), Database: PostgreSQL"
+User's Additional Features: "We are using Render, deploying to Netlify and using mongoDB"
+
+✅ CORRECT DECISION:
+- Database: MongoDB (user specified, OVERRIDE PostgreSQL)
+- Backend: Flask (no conflict, keep from package)
+- Deployment: Netlify (user specified, OVERRIDE Render or DigitalOcean)
+
+❌ WRONG DECISION:
+- Using BOTH PostgreSQL and MongoDB
+- Using DigitalOcean when user said Netlify
+```
+
+**Example 2: Deployment Override**
+```
+Base Package: "Deployment: DigitalOcean or Render"
+User's Additional Features: "deploy to Netlify"
+
+✅ CORRECT DECISION:
+- Deployment: Netlify ONLY
+- Configure for Netlify, not DigitalOcean or Render
+
+❌ WRONG DECISION:
+- Providing deployment instructions for multiple platforms
+```
+
+**Example 3: API Style Override**
+```
+Base Package: "REST API"
+User's Special Requirements: "use GraphQL for the API"
+
+✅ CORRECT DECISION:
+- API: GraphQL (user specified, OVERRIDE REST)
+
+❌ WRONG DECISION:
+- Building a REST API when user explicitly wants GraphQL
+```
+
+### ✅ Your Responsibilities:
+
+1. **READ CAREFULLY**: User's additional features and requirements
+2. **IDENTIFY CONFLICTS**: Between user input and base package
+3. **CHOOSE INTELLIGENTLY**: Always prioritize user's explicit requests
+4. **IMPLEMENT CONSISTENTLY**: Use chosen technologies throughout ALL files
+5. **DOCUMENT CLEARLY**: Explain in README which technologies were used and why
 
 ## 🎯 YOUR MISSION
 
@@ -3316,7 +3211,7 @@ The user is counting on you to deliver a COMPLETE, WORKING, DEPLOYABLE applicati
                 'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                 'idea': st.session_state.project_idea,
                 'strategy': st.session_state.chosen_strategy,
-                'api_keys_count': len(st.session_state.get('api_keys', {})),
+                'config_provided': bool(st.session_state.get('raw_config')),
                 'files_count': len(st.session_state.uploaded_files_data)
             }
             
@@ -3356,7 +3251,8 @@ The user is counting on you to deliver a COMPLETE, WORKING, DEPLOYABLE applicati
                 display_strategy = strategy_name if len(strategy_name) <= 15 else strategy_name[:12] + "..."
                 st.metric("📦 Strategy", display_strategy)
             with cols[2]:
-                st.metric("🔑 API Keys", st.session_state.execution_metadata.get('api_keys_count', 0))
+                config_status = "Yes" if st.session_state.execution_metadata.get('config_provided') else "No"
+                st.metric("🔑 Config", config_status)
             with cols[3]:
                 st.metric("📁 Ref Files", st.session_state.execution_metadata.get('files_count', 0))
             with cols[4]:
@@ -3473,8 +3369,8 @@ The user is counting on you to deliver a COMPLETE, WORKING, DEPLOYABLE applicati
                 st.session_state.strategy_options = None
                 st.session_state.chosen_strategy = None
                 st.session_state.user_selections = {}
-                st.session_state.api_keys = {}
-                st.session_state.api_key_inputs = {}
+                st.session_state.raw_config = ""
+                st.session_state.config_input = ""
                 st.session_state.execution_result = None
                 st.session_state.execution_metadata = {}
                 st.success("🔄 Session reset! Starting fresh...")
