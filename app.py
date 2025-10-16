@@ -1644,13 +1644,31 @@ def build_context_from_files(files_data: List[Dict[str, Any]]) -> str:
     if not files_data:
         return ""
     
-    context_parts = ["\n\n---\n## 📚 Background Materials & Reference Documents\n"]
-    context_parts.append("The following files have been provided as background knowledge for this project:\n")
+    context_parts = ["\n\n---\n## 🚨 MANDATORY IMPLEMENTATION INSTRUCTIONS FROM USER\n\n"]
+    context_parts.append("⚠️ **CRITICAL**: These are NOT just reference materials. These are IMPLEMENTATION TEMPLATES you MUST follow.\n\n")
+    context_parts.append("**Your Responsibilities:**\n")
+    context_parts.append("1. **READ CAREFULLY**: Extract code patterns, logic, and workflows from these files\n")
+    context_parts.append("2. **IMPLEMENT EXACTLY**: If files contain ML models, data cleaning steps, or API patterns → implement them\n")
+    context_parts.append("3. **USE THE CODE**: Don't create generic placeholders - use the actual code/logic from these files\n")
+    context_parts.append("4. **ADAPT INTELLIGENTLY**: Translate concepts to your chosen tech stack while preserving functionality\n\n")
+    context_parts.append("**Examples:**\n")
+    context_parts.append("- File has pandas data cleaning → Implement those exact cleaning steps ✅\n")
+    context_parts.append("- File has ML model training → Implement that model training logic ✅\n")
+    context_parts.append("- File has API endpoints → Create those exact endpoints ✅\n")
+    context_parts.append("- File has UI components → Build those components ✅\n\n")
+    context_parts.append("**DO NOT:**\n")
+    context_parts.append("- ❌ Treat these as 'background information only'\n")
+    context_parts.append("- ❌ Create generic code when specific examples are provided\n")
+    context_parts.append("- ❌ Ignore the implementation details in these files\n\n")
+    context_parts.append("---\n\n")
     
     for idx, file_data in enumerate(files_data, 1):
-        context_parts.append(f"\n### {file_data['icon']} File {idx}: {file_data['name']} ({file_data['type']})\n")
+        context_parts.append(f"\n### 📋 IMPLEMENTATION FILE {idx}: {file_data['name']} ({file_data['type']})\n\n")
+        context_parts.append("**INSTRUCTION**: Study this file and implement its logic/patterns in your code.\n\n")
         context_parts.append(file_data['content'])
         context_parts.append("\n---\n")
+    
+    context_parts.append("\n\n🎯 **FINAL REMINDER**: If the user provided implementation files, they expect you to USE them, not ignore them!\n")
     
     return ''.join(context_parts)
 
