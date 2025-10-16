@@ -2388,12 +2388,23 @@ def project_execution_page():
         col_nav1, col_nav2, col_nav3 = st.columns([1, 1, 1])
         
         with col_nav1:
-            if st.button("← Back to Idea", help="Go back to edit your project idea", key="back_to_idea_btn"):
+            if st.button(
+                "← Back to Idea", 
+                help="Go back to edit your project idea", 
+                key="back_to_idea_btn",
+                use_container_width=True
+            ):
                 st.session_state.phase = 'idea_input'
                 st.rerun()
         
         with col_nav3:
-            if st.button("Continue →", type="primary", help="Proceed to gather API keys", key="continue_from_strategy_btn"):
+            if st.button(
+                "Continue →", 
+                type="primary", 
+                help="Proceed to configure API keys", 
+                key="continue_from_strategy_btn",
+                use_container_width=True
+            ):
                 # Store the chosen strategy
                 st.session_state.chosen_strategy = package_choice
                 st.session_state.user_selections = {
@@ -2499,14 +2510,23 @@ def project_execution_page():
             
             st.divider()
             
-            # Form buttons
+            # Form buttons with consistent styling
             col_form1, col_form2, col_form3 = st.columns([1, 1, 1])
             
             with col_form1:
-                back_button = st.form_submit_button("← Back", help="Return to package selection")
+                back_button = st.form_submit_button(
+                    "← Back to Strategy", 
+                    help="Return to package selection",
+                    use_container_width=True
+                )
             
             with col_form3:
-                submit_button = st.form_submit_button("Continue to Build →", type="primary", help="Proceed with building")
+                submit_button = st.form_submit_button(
+                    "Continue →", 
+                    type="primary", 
+                    help="Proceed with building",
+                    use_container_width=True
+                )
             
             # Handle form submission
             if back_button:
@@ -2810,6 +2830,13 @@ Before submitting, verify:
             # Create Orchestrator agent
             orchestrator_agent = build_crewai_agent(orchestrator_profile)
             
+            # Create worker agents (all agents except orchestrator)
+            worker_agents = []
+            for agent_profile in saved_agents:
+                if agent_profile['id'] != orchestrator_profile['id']:  # Exclude orchestrator
+                    worker_agent = build_crewai_agent(agent_profile)
+                    worker_agents.append(worker_agent)
+            
             # Create comprehensive task
             build_task = Task(
                 description=orchestrator_task_desc,
@@ -2829,9 +2856,10 @@ Before submitting, verify:
                 agent=orchestrator_agent
             )
             
-            # Create crew (Orchestrator can delegate to other agents)
+            # Create crew with hierarchical process
+            # In hierarchical mode: manager_agent is separate, agents list contains only workers
             build_crew = Crew(
-                agents=[orchestrator_agent],
+                agents=worker_agents if worker_agents else [orchestrator_agent],  # Use workers, or orchestrator if no workers
                 tasks=[build_task],
                 process=Process.hierarchical,
                 manager_agent=orchestrator_agent,
