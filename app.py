@@ -357,10 +357,12 @@ div[data-baseweb="select"] svg,
   fill: var(--text-secondary) !important;
 }
 
-/* Dropdown Menu Container */
+/* Dropdown Menu Container - Multiple Selectors for Higher Specificity */
 [data-baseweb="menu"],
 [data-baseweb="popover"],
-ul[role="listbox"] {
+ul[role="listbox"],
+.stSelectbox [data-baseweb="popover"],
+[data-baseweb="popover"] [data-baseweb="menu"] {
   background: var(--bg-elevated) !important;
   border: 1px solid var(--border-default) !important;
   border-radius: var(--radius-md) !important;
@@ -368,10 +370,19 @@ ul[role="listbox"] {
   padding: var(--spacing-sm) !important;
 }
 
-/* Dropdown Options */
+/* Dropdown Menu Inner Content */
+[data-baseweb="menu"] > ul,
+[data-baseweb="popover"] > div,
+ul[role="listbox"] {
+  background: var(--bg-elevated) !important;
+}
+
+/* Dropdown Options - High Specificity */
 [role="option"],
 li[role="option"],
-[data-baseweb="menu-item"] {
+[data-baseweb="menu-item"],
+.stSelectbox [role="option"],
+[data-baseweb="menu"] li {
   background: transparent !important;
   color: var(--text-primary) !important;
   padding: var(--spacing-md) var(--spacing-lg) !important;
@@ -380,16 +391,26 @@ li[role="option"],
   transition: all var(--transition-fast) !important;
 }
 
+/* Force text color in all dropdown children */
+[role="option"] *,
+li[role="option"] *,
+[data-baseweb="menu-item"] * {
+  color: var(--text-primary) !important;
+}
+
+/* Dropdown Option Hover State */
 [role="option"]:hover,
 li[role="option"]:hover,
-[data-baseweb="menu-item"]:hover {
+[data-baseweb="menu-item"]:hover,
+.stSelectbox [role="option"]:hover {
   background: var(--bg-tertiary) !important;
   color: var(--text-primary) !important;
 }
 
-/* Selected Option */
+/* Selected Option Highlight */
 [role="option"][aria-selected="true"],
-li[role="option"][aria-selected="true"] {
+li[role="option"][aria-selected="true"],
+.stSelectbox [role="option"][aria-selected="true"] {
   background: var(--bg-tertiary) !important;
   color: var(--accent-primary) !important;
   font-weight: 600 !important;
@@ -399,6 +420,12 @@ li[role="option"][aria-selected="true"] {
 .stSelectbox label {
   color: var(--text-primary) !important;
   font-weight: 500 !important;
+}
+
+/* Override any white backgrounds in dropdown */
+[data-baseweb="popover"] [style*="background"],
+[data-baseweb="menu"] [style*="background"] {
+  background: var(--bg-elevated) !important;
 }
 
 /* ============================================================================
