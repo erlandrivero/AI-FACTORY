@@ -1654,6 +1654,71 @@ def build_context_from_files(files_data: List[Dict[str, Any]]) -> str:
     
     return ''.join(context_parts)
 
+def check_technology_compatibility(uploaded_files: List[Dict[str, Any]], selected_package: str) -> Dict[str, Any]:
+    """
+    Check for technology compatibility issues between uploaded files and selected package.
+    Returns: {
+        'has_conflict': bool,
+        'warnings': List[str],
+        'recommendations': List[str]
+    }
+    """
+    result = {
+        'has_conflict': False,
+        'warnings': [],
+        'recommendations': []
+    }
+    
+    if not uploaded_files:
+        return result
+    
+    # Detect file types
+    has_python_files = any(
+        f['name'].endswith(('.py', '.ipynb')) or 
+        'python' in f['type'].lower() or 
+        'notebook' in f['type'].lower() 
+        for f in uploaded_files
+    )
+    
+    has_javascript_files = any(
+        f['name'].endswith(('.js', '.jsx', '.ts', '.tsx')) 
+        for f in uploaded_files
+    )
+    
+    package_lower = selected_package.lower()
+    
+    # Check for Python files + Node.js backend conflict
+    if has_python_files and any(keyword in package_lower for keyword in ['node.js', 'express', 'next.js']):
+        result['has_conflict'] = True
+        result['warnings'].append(
+            "🐍 **Python/Notebook Conflict:** Your uploaded files contain Python code or Jupyter notebooks, "
+            "but the selected package uses a **Node.js/JavaScript backend**."
+        )
+        result['warnings'].append(
+            "⚠️ **Impact:** The Python code (pandas, numpy, scikit-learn, etc.) from your notebooks "
+            "cannot be directly used in a Node.js backend. You would need to rewrite the logic in JavaScript."
+        )
+        result['recommendations'].append(
+            "✅ **Recommended:** Choose a Python-based package (Flask, Django, FastAPI) to use your existing Python code."
+        )
+        result['recommendations'].append(
+            "📦 **Alternative Packages:** Look for packages that mention 'Flask', 'Django', or 'Python' in the backend."
+        )
+    
+    # Check for JavaScript files + Python backend (less critical)
+    if has_javascript_files and any(keyword in package_lower for keyword in ['flask', 'django', 'fastapi']):
+        result['has_conflict'] = True
+        result['warnings'].append(
+            "⚠️ **JavaScript Detected:** Your uploaded files contain JavaScript code, "
+            "but the selected package uses a **Python backend**."
+        )
+        result['recommendations'].append(
+            "💡 **Note:** This is usually fine if your JavaScript is frontend code (React, Vue, etc.). "
+            "But if it's backend logic, you'll need to rewrite it in Python."
+        )
+    
+    return result
+
 def extract_code_files_from_result(result_text: str) -> Dict[str, str]:
     """Extract code files from markdown result."""
     files = {}
@@ -2433,18 +2498,70 @@ def project_execution_page():
                 key="continue_from_strategy_btn",
                 use_container_width=True
             ):
-                # Store the chosen strategy
-                st.session_state.chosen_strategy = package_choice
-                st.session_state.user_selections = {
-                    'package': package_choice,
-                    'additional_features': additional_features,
-                    'special_requirements': special_requirements
-                }
+                # Check for technology compatibility issues
+                compatibility = check_technology_compatibility(
+                    st.session_state.uploaded_files_data,
+                    package_choice
+                )
                 
-                # Move to info_gathering phase
-                st.session_state.phase = 'info_gathering'
-                st.success(f"✅ Selected: {package_choice}")
-                st.rerun()
+                if compatibility['has_conflict']:
+                    # Show compatibility warning
+                    st.warning("⚠️ **Technology Compatibility Issue Detected**")
+                    
+                    for warning in compatibility['warnings']:
+                        st.markdown(warning)
+                    
+                    st.divider()
+                    st.markdown("### 💡 Recommendations:")
+                    for rec in compatibility['recommendations']:
+                        st.markdown(rec)
+                    
+                    st.divider()
+                    
+                    # Give user choice to proceed or go back
+                    col_warn1, col_warn2 = st.columns(2)
+                    
+                    with col_warn1:
+                        if st.button(
+                            "← Change Package", 
+                            help="Go back and select a compatible package",
+                            key="change_package_btn",
+                            use_container_width=True
+                        ):
+                            st.info("👈 Please select a different package above")
+                            st.stop()
+                    
+                    with col_warn2:
+                        if st.button(
+                            "Proceed Anyway →",
+                            type="secondary",
+                            help="Continue despite compatibility issues",
+                            key="proceed_anyway_btn",
+                            use_container_width=True
+                        ):
+                            # Store and proceed
+                            st.session_state.chosen_strategy = package_choice
+                            st.session_state.user_selections = {
+                                'package': package_choice,
+                                'additional_features': additional_features,
+                                'special_requirements': special_requirements
+                            }
+                            st.session_state.phase = 'info_gathering'
+                            st.warning("⚠️ Proceeding with known compatibility issues...")
+                            st.rerun()
+                    
+                    st.stop()  # Don't proceed until user makes a choice
+                else:
+                    # No conflicts, proceed normally
+                    st.session_state.chosen_strategy = package_choice
+                    st.session_state.user_selections = {
+                        'package': package_choice,
+                        'additional_features': additional_features,
+                        'special_requirements': special_requirements
+                    }
+                    st.session_state.phase = 'info_gathering'
+                    st.success(f"✅ Selected: {package_choice}")
+                    st.rerun()
     
     # ============================================================================
     # PHASE 3: INFO GATHERING (API Keys & Secrets)
