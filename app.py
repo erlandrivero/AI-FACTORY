@@ -322,10 +322,12 @@ textarea {
 }
 
 /* ============================================================================
-   SELECT & DROPDOWN MENUS
+   SELECT & DROPDOWN MENUS - Fixed for Dark Mode
    ============================================================================ */
 
-div[data-baseweb="select"] > div {
+/* Selectbox Container */
+div[data-baseweb="select"] > div,
+.stSelectbox > div > div {
   background: var(--bg-tertiary) !important;
   border: 1.5px solid var(--border-default) !important;
   border-radius: var(--radius-md) !important;
@@ -334,18 +336,31 @@ div[data-baseweb="select"] > div {
   transition: all var(--transition-base) !important;
 }
 
-div[data-baseweb="select"] > div:hover {
+div[data-baseweb="select"] > div:hover,
+.stSelectbox > div > div:hover {
   border-color: var(--border-emphasis) !important;
   background: var(--bg-elevated) !important;
 }
 
-div[data-baseweb="select"] svg {
+/* Selectbox Selected Value Text */
+div[data-baseweb="select"] > div > div,
+div[data-baseweb="select"] span,
+div[data-baseweb="select"] input,
+.stSelectbox div[data-baseweb="select"] > div {
+  color: var(--text-primary) !important;
+  background: transparent !important;
+}
+
+/* Selectbox Arrow Icon */
+div[data-baseweb="select"] svg,
+.stSelectbox svg {
   fill: var(--text-secondary) !important;
 }
 
-/* Dropdown Options */
+/* Dropdown Menu Container */
 [data-baseweb="menu"],
-[data-baseweb="popover"] {
+[data-baseweb="popover"],
+ul[role="listbox"] {
   background: var(--bg-elevated) !important;
   border: 1px solid var(--border-default) !important;
   border-radius: var(--radius-md) !important;
@@ -353,7 +368,10 @@ div[data-baseweb="select"] svg {
   padding: var(--spacing-sm) !important;
 }
 
-[role="option"] {
+/* Dropdown Options */
+[role="option"],
+li[role="option"],
+[data-baseweb="menu-item"] {
   background: transparent !important;
   color: var(--text-primary) !important;
   padding: var(--spacing-md) var(--spacing-lg) !important;
@@ -362,9 +380,25 @@ div[data-baseweb="select"] svg {
   transition: all var(--transition-fast) !important;
 }
 
-[role="option"]:hover {
+[role="option"]:hover,
+li[role="option"]:hover,
+[data-baseweb="menu-item"]:hover {
   background: var(--bg-tertiary) !important;
   color: var(--text-primary) !important;
+}
+
+/* Selected Option */
+[role="option"][aria-selected="true"],
+li[role="option"][aria-selected="true"] {
+  background: var(--bg-tertiary) !important;
+  color: var(--accent-primary) !important;
+  font-weight: 600 !important;
+}
+
+/* Selectbox Label */
+.stSelectbox label {
+  color: var(--text-primary) !important;
+  font-weight: 500 !important;
 }
 
 /* ============================================================================
