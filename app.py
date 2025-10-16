@@ -867,13 +867,19 @@ textarea {
 [data-testid="stMetricLabel"],
 [data-testid="stMetric"] label {
   color: var(--text-muted) !important;
+  font-size: 0.75rem !important;
 }
 [data-testid="stMetricValue"],
 [data-testid="stMetric"] [data-testid="stMarkdownContainer"] {
   color: var(--text) !important;
+  font-size: 1rem !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
 }
 [data-testid="stMetricDelta"] {
   color: var(--text) !important;
+  font-size: 0.875rem !important;
 }
 
 /* Download buttons */
@@ -2080,6 +2086,129 @@ def build_crewai_agent(profile: Dict[str, Any]) -> Agent:
     )
 
 # ------------------------------------------------------------------------------
+# Helper: Intelligent API Key Detection
+# ------------------------------------------------------------------------------
+def detect_api_keys_for_stack(package_name: str, full_strategy_text: str) -> tuple:
+    """
+    Intelligently detect required and optional API keys based on the selected package.
+    Analyzes the package content to extract tech stack details.
+    Returns: (required_keys_dict, optional_keys_dict)
+    """
+    required_keys = {}
+    optional_keys = {}
+    
+    # Combine all text for analysis
+    combined_text = f"{package_name.lower()} {full_strategy_text.lower()}"
+    
+    # ========== TECH STACK SPECIFIC DETECTION ==========
+    
+    # MERN Stack (MongoDB, Express, React, Node.js)
+    if "mern" in combined_text or ("mongodb" in combined_text and "react" in combined_text and "express" in combined_text):
+        optional_keys["MongoDB Atlas URI"] = "MongoDB connection string (mongodb+srv://user:pass@cluster.mongodb.net/dbname)"
+        optional_keys["JWT Secret"] = "Secret key for JWT token generation (authentication)"
+        optional_keys["Port"] = "Server port (default: 5000 or 3000)"
+    
+    # MEAN Stack (MongoDB, Express, Angular, Node.js)
+    if "mean" in combined_text or ("mongodb" in combined_text and "angular" in combined_text):
+        optional_keys["MongoDB Atlas URI"] = "MongoDB connection string"
+        optional_keys["JWT Secret"] = "Secret key for authentication tokens"
+    
+    # PERN Stack (PostgreSQL, Express, React, Node.js)
+    if "pern" in combined_text or ("postgresql" in combined_text and "react" in combined_text):
+        optional_keys["PostgreSQL Database URL"] = "PostgreSQL connection (postgresql://user:pass@host:5432/db)"
+        optional_keys["JWT Secret"] = "Secret for JWT authentication"
+    
+    # Next.js
+    if "next" in combined_text or "nextjs" in combined_text:
+        optional_keys["NEXT_PUBLIC_API_URL"] = "Public API URL for client-side requests"
+    
+    # Django
+    if "django" in combined_text:
+        optional_keys["Django Secret Key"] = "Django SECRET_KEY for security"
+        optional_keys["Database URL"] = "Database connection string"
+    
+    # Flask
+    if "flask" in combined_text:
+        optional_keys["Flask Secret Key"] = "Flask SECRET_KEY for sessions"
+        optional_keys["Database URI"] = "SQLAlchemy database URI"
+    
+    # ========== DATABASE DETECTION ==========
+    
+    if "supabase" in combined_text:
+        required_keys["Supabase Project URL"] = "Your Supabase project URL (https://xxxxx.supabase.co)"
+        required_keys["Supabase Anon Key"] = "Your Supabase anonymous/public API key"
+    
+    if "firebase" in combined_text:
+        required_keys["Firebase Config JSON"] = "Your Firebase configuration object"
+    
+    if "mongodb" in combined_text and "MongoDB Atlas URI" not in optional_keys:
+        optional_keys["MongoDB Connection String"] = "MongoDB URI (mongodb+srv://...)"
+    
+    if ("postgres" in combined_text or "postgresql" in combined_text) and "PostgreSQL" not in str(optional_keys):
+        optional_keys["PostgreSQL URL"] = "PostgreSQL connection (postgresql://...)"
+    
+    if "mysql" in combined_text:
+        optional_keys["MySQL Connection String"] = "MySQL database connection"
+    
+    # ========== DEPLOYMENT PLATFORM ==========
+    
+    if "netlify" in combined_text:
+        optional_keys["Netlify API Token"] = "For automated deployments (app.netlify.com → Personal access tokens)"
+    
+    if "vercel" in combined_text:
+        optional_keys["Vercel Token"] = "For automated deployments (vercel.com/account/tokens)"
+    
+    if "railway" in combined_text:
+        optional_keys["Railway Token"] = "For Railway deployments (railway.app/account/tokens)"
+    
+    if "render" in combined_text:
+        optional_keys["Render API Key"] = "For Render deployments (dashboard.render.com)"
+    
+    if "heroku" in combined_text:
+        optional_keys["Heroku API Key"] = "For Heroku deployments"
+    
+    if "aws" in combined_text or "amazon web services" in combined_text:
+        optional_keys["AWS Access Key ID"] = "AWS access key for deployments"
+        optional_keys["AWS Secret Access Key"] = "AWS secret key"
+    
+    if "digitalocean" in combined_text:
+        optional_keys["DigitalOcean Token"] = "DigitalOcean API token"
+    
+    # ========== SERVICE INTEGRATIONS ==========
+    
+    if "openai" in combined_text or "gpt" in combined_text or "chatgpt" in combined_text:
+        optional_keys["OpenAI API Key"] = "For AI features (platform.openai.com/api-keys)"
+    
+    if "stripe" in combined_text or "payment" in combined_text:
+        optional_keys["Stripe API Key"] = "For payments (dashboard.stripe.com/apikeys)"
+        optional_keys["Stripe Webhook Secret"] = "For webhook verification"
+    
+    if "sendgrid" in combined_text or ("email" in combined_text and "send" in combined_text):
+        optional_keys["SendGrid API Key"] = "For email sending (sendgrid.com/api-keys)"
+    
+    if "twilio" in combined_text or "sms" in combined_text:
+        optional_keys["Twilio Account SID"] = "Twilio account SID"
+        optional_keys["Twilio Auth Token"] = "Twilio auth token"
+    
+    if "cloudinary" in combined_text or "image upload" in combined_text or "media upload" in combined_text:
+        optional_keys["Cloudinary Cloud Name"] = "Cloudinary cloud name"
+        optional_keys["Cloudinary API Key"] = "Cloudinary API key"
+        optional_keys["Cloudinary API Secret"] = "Cloudinary API secret"
+    
+    if "google" in combined_text and "auth" in combined_text:
+        optional_keys["Google OAuth Client ID"] = "For Google sign-in"
+        optional_keys["Google OAuth Client Secret"] = "Google OAuth secret"
+    
+    if "github" in combined_text and "auth" in combined_text:
+        optional_keys["GitHub OAuth Client ID"] = "For GitHub authentication"
+        optional_keys["GitHub OAuth Client Secret"] = "GitHub OAuth secret"
+    
+    # ========== ALWAYS USEFUL ==========
+    optional_keys["GitHub Personal Access Token"] = "For CI/CD automation (github.com/settings/tokens)"
+    
+    return required_keys, optional_keys
+
+# ------------------------------------------------------------------------------
 # PAGE: Project Execution
 # ------------------------------------------------------------------------------
 def project_execution_page():
@@ -2435,141 +2564,101 @@ def project_execution_page():
         
         st.divider()
         
-        # Detect required API keys based on chosen strategy
-        chosen_strategy_lower = str(st.session_state.chosen_strategy).lower()
-        strategy_options_lower = str(st.session_state.strategy_options).lower()
+        # Use intelligent API key detection
+        required_keys, optional_keys = detect_api_keys_for_stack(
+            st.session_state.chosen_strategy,
+            st.session_state.strategy_options
+        )
         
-        required_keys = {}
-        optional_keys = {}
+        st.info("💡 **Tip:** These API keys are detected based on your selected package. You can skip this step and add them later during deployment. The agents will use these to configure your application properly.")
         
-        # Deployment platforms
-        if "netlify" in chosen_strategy_lower or "netlify" in strategy_options_lower:
-            optional_keys["Netlify API Token"] = "Get from: app.netlify.com → User Settings → Applications → Personal access tokens"
-        if "vercel" in chosen_strategy_lower or "vercel" in strategy_options_lower:
-            optional_keys["Vercel Token"] = "Get from: vercel.com/account/tokens"
-        if "railway" in chosen_strategy_lower or "railway" in strategy_options_lower:
-            optional_keys["Railway Token"] = "Get from: railway.app/account/tokens"
-        if "render" in chosen_strategy_lower or "render" in strategy_options_lower:
-            optional_keys["Render API Key"] = "Get from: dashboard.render.com → Account Settings → API Keys"
-        if "heroku" in chosen_strategy_lower or "heroku" in strategy_options_lower:
-            optional_keys["Heroku API Key"] = "Get from: dashboard.heroku.com/account → API Key"
-        
-        # Databases
-        if "supabase" in chosen_strategy_lower:
-            required_keys["Supabase URL"] = "Your Supabase project URL"
-            required_keys["Supabase Anon Key"] = "Your Supabase anon/public key"
-        if "firebase" in chosen_strategy_lower:
-            required_keys["Firebase Config"] = "Your Firebase configuration object (JSON)"
-        if "mongodb" in chosen_strategy_lower and "atlas" in chosen_strategy_lower:
-            optional_keys["MongoDB Atlas URI"] = "Your MongoDB connection string"
-        if "postgres" in chosen_strategy_lower or "postgresql" in chosen_strategy_lower:
-            optional_keys["Database URL"] = "PostgreSQL connection string (e.g., postgresql://user:pass@host:5432/db)"
-        
-        # Services
-        if "openai" in chosen_strategy_lower or "gpt" in chosen_strategy_lower:
-            optional_keys["OpenAI API Key"] = "Get from: platform.openai.com/api-keys"
-        if "stripe" in chosen_strategy_lower:
-            optional_keys["Stripe API Key"] = "Get from: dashboard.stripe.com/apikeys"
-            optional_keys["Stripe Webhook Secret"] = "For webhook verification"
-        if "sendgrid" in chosen_strategy_lower or "email" in chosen_strategy_lower:
-            optional_keys["SendGrid API Key"] = "For email sending functionality"
-        if "twilio" in chosen_strategy_lower:
-            optional_keys["Twilio Account SID"] = "Your Twilio account SID"
-            optional_keys["Twilio Auth Token"] = "Your Twilio auth token"
-        
-        # Always useful
-        optional_keys["GitHub Token"] = "For automated deployment and CI/CD (get from: github.com/settings/tokens)"
-        
-        st.info("💡 **Tip:** You can skip this step and add API keys later during deployment. These are optional for the code generation phase.")
-        
-        # API Keys Form
-        with st.form("api_keys_form", clear_on_submit=False):
-            st.markdown("### 🔑 Required API Keys")
-            if required_keys:
-                required_values = {}
-                for key_name, key_help in required_keys.items():
-                    required_values[key_name] = st.text_input(
-                        f"🔴 {key_name} (Required)",
-                        type="password",
-                        help=key_help,
-                        key=f"required_{key_name.replace(' ', '_').lower()}"
-                    )
-            else:
-                st.success("✅ No required API keys detected for your chosen stack!")
+        # API Keys Input (non-form for better styling)
+        st.markdown("### 🔑 Required API Keys")
+        if required_keys:
+            if 'api_key_inputs' not in st.session_state:
+                st.session_state.api_key_inputs = {}
             
-            st.markdown("### 🔓 Optional API Keys")
-            if optional_keys:
-                optional_values = {}
-                for key_name, key_help in optional_keys.items():
-                    optional_values[key_name] = st.text_input(
-                        f"⚪ {key_name} (Optional)",
-                        type="password",
-                        help=key_help,
-                        key=f"optional_{key_name.replace(' ', '_').lower()}"
-                    )
-            
-            st.divider()
-            
-            # Form buttons with consistent styling
-            col_form1, col_form2, col_form3 = st.columns([1, 1, 1])
-            
-            with col_form1:
-                back_button = st.form_submit_button(
-                    "← Back to Strategy", 
-                    help="Return to package selection",
-                    use_container_width=True
+            for key_name, key_help in required_keys.items():
+                st.session_state.api_key_inputs[key_name] = st.text_input(
+                    f"🔴 {key_name} (Required)",
+                    value=st.session_state.api_key_inputs.get(key_name, ""),
+                    type="password",
+                    help=key_help,
+                    key=f"required_{key_name.replace(' ', '_').replace('/', '_').lower()}"
                 )
+        else:
+            st.success("✅ No required API keys detected for your chosen stack!")
+        
+        st.markdown("### 🔓 Optional API Keys")
+        st.caption("💡 Fill in only the API keys you want to use. The agents will create placeholder configuration for any skipped keys.")
+        
+        if optional_keys:
+            if 'api_key_inputs' not in st.session_state:
+                st.session_state.api_key_inputs = {}
             
-            with col_form3:
-                submit_button = st.form_submit_button(
-                    "Continue →", 
-                    type="primary", 
-                    help="Proceed with building",
-                    use_container_width=True
+            for key_name, key_help in optional_keys.items():
+                st.session_state.api_key_inputs[key_name] = st.text_input(
+                    f"⚪ {key_name} (Optional)",
+                    value=st.session_state.api_key_inputs.get(key_name, ""),
+                    type="password",
+                    help=key_help,
+                    key=f"optional_{key_name.replace(' ', '_').replace('/', '_').lower()}"
                 )
-            
-            # Handle form submission
-            if back_button:
+        
+        st.divider()
+        
+        # Navigation buttons with matching Phase 2 styling
+        col_nav1, col_nav2, col_nav3 = st.columns([1, 1, 1])
+        
+        with col_nav1:
+            if st.button(
+                "← Back to Strategy", 
+                help="Return to package selection",
+                key="back_to_strategy_from_config_btn",
+                use_container_width=True
+            ):
                 st.session_state.phase = 'strategy_selection'
                 st.rerun()
-            
-            if submit_button:
+        
+        with col_nav3:
+            if st.button(
+                "Continue →", 
+                type="primary", 
+                help="Proceed with building",
+                key="continue_from_config_btn",
+                use_container_width=True
+            ):
                 # Validate required keys
                 if required_keys:
-                    all_required_filled = all(required_values.get(k, "").strip() for k in required_keys.keys())
-                    if not all_required_filled:
-                        st.error("❌ Please fill in all required API keys before continuing.")
+                    missing_keys = [k for k in required_keys.keys() if not st.session_state.api_key_inputs.get(k, "").strip()]
+                    if missing_keys:
+                        st.error(f"❌ Please fill in all required API keys: {', '.join(missing_keys)}")
                         st.stop()
                 
                 # Store all API keys
                 api_keys = {}
-                
-                if required_keys:
-                    for key_name, value in required_values.items():
-                        if value.strip():
-                            api_keys[key_name] = value.strip()
-                
-                if optional_keys:
-                    for key_name, value in optional_values.items():
-                        if value.strip():
-                            api_keys[key_name] = value.strip()
+                for key_name, value in st.session_state.api_key_inputs.items():
+                    if value and value.strip():
+                        api_keys[key_name] = value.strip()
                 
                 st.session_state.api_keys = api_keys
                 
                 # Move to building phase
                 st.session_state.phase = 'building'
                 st.success(f"✅ Configured {len(api_keys)} API key(s). Proceeding to build...")
+                time.sleep(0.5)
                 st.rerun()
         
         st.divider()
         
-        # Skip option outside the form
+        # Skip option with centered button
         col_skip1, col_skip2, col_skip3 = st.columns([1, 1, 1])
         with col_skip2:
-            if st.button("⏭️ Skip & Build", help="Skip API key configuration and proceed", key="skip_api_keys_btn"):
+            if st.button("⏭️ Skip & Build", help="Skip API key configuration and proceed", key="skip_api_keys_btn", use_container_width=True):
                 st.session_state.api_keys = {}
                 st.session_state.phase = 'building'
-                st.info("Skipped API key configuration. You can add them during deployment.")
+                st.info("⏭️ Skipped API key configuration. You can add them during deployment.")
+                time.sleep(0.5)
                 st.rerun()
     
     # ============================================================================
@@ -2617,17 +2706,39 @@ def project_execution_page():
         
         # Format API keys for the task
         api_keys_context = ""
-        if st.session_state.get('api_keys'):
+        if st.session_state.get('api_keys') and len(st.session_state.api_keys) > 0:
             api_keys_context = "\n\n## 🔑 Provided API Keys & Configuration\n\n"
-            api_keys_context += "The user has provided the following API keys/configuration:\n\n"
+            api_keys_context += "The user has provided the following API keys/configuration that **MUST** be integrated into the application:\n\n"
+            
+            api_key_list = []
+            env_variables = []
+            
             for key_name, key_value in st.session_state.api_keys.items():
                 # Show key name and masked value for security
                 masked_value = key_value[:4] + "..." + key_value[-4:] if len(key_value) > 8 else "***"
-                api_keys_context += f"- **{key_name}**: `{masked_value}` (available for use)\n"
-            api_keys_context += "\n⚠️ **IMPORTANT**: Include setup instructions for these API keys in your deployment guide.\n"
-            api_keys_context += "Create environment variable templates and configuration examples.\n"
+                api_key_list.append(f"- **{key_name}**: `{masked_value}` (provided by user)")
+                
+                # Convert to environment variable format
+                env_var_name = key_name.upper().replace(' ', '_').replace('-', '_')
+                env_variables.append(f"{env_var_name}={key_value}")
+            
+            api_keys_context += "\n".join(api_key_list)
+            api_keys_context += "\n\n### 🔧 Integration Instructions\n\n"
+            api_keys_context += "1. **Create `.env.example`** file with placeholder values for all keys\n"
+            api_keys_context += "2. **Show how to use these keys** in your application code (e.g., environment variables, config files)\n"
+            api_keys_context += "3. **Document each key's purpose** in the README\n"
+            api_keys_context += "4. **Include setup instructions** in the deployment guide\n"
+            api_keys_context += "\n**Environment Variables Format:**\n```\n"
+            api_keys_context += "\n".join(env_variables[:3])  # Show first 3 as example
+            if len(env_variables) > 3:
+                api_keys_context += f"\n# ... and {len(env_variables) - 3} more\n"
+            api_keys_context += "```\n"
         else:
-            api_keys_context = "\n\n## 🔑 API Keys\n\nNo API keys provided. Include placeholder configuration in your deployment guide.\n"
+            api_keys_context = "\n\n## 🔑 API Keys & Configuration\n\n"
+            api_keys_context += "No API keys were provided by the user. You should:\n"
+            api_keys_context += "1. Include a `.env.example` file with placeholder values for common services\n"
+            api_keys_context += "2. Document which API keys the application needs in the README\n"
+            api_keys_context += "3. Show where to obtain these keys in the setup guide\n"
         
         # Format additional requirements
         additional_context = ""
@@ -2697,6 +2808,47 @@ Your mission is to deliver a complete **Deployment Kit** that includes:
 
 ⚠️ **API KEY INTEGRATION**: If API keys were provided, show exactly where and how to use them in the code and deployment.
 
+## 🚫 ABSOLUTELY FORBIDDEN
+
+❌ **NO PLACEHOLDER CODE**: Never use comments like "// logic goes here" or "# TODO: implement this"
+❌ **NO BROKEN IMPORTS**: Every import statement MUST reference a file you actually generate
+❌ **NO MISSING ENTRY POINTS**: Include index.js, index.html, main.py, or whatever the tech stack requires
+❌ **NO EMPTY FUNCTIONS**: Every function must have actual implementation
+❌ **NO MISSING DEPENDENCIES**: Every imported package must be in package.json/requirements.txt
+❌ **NO SKELETON CODE**: Generate complete, working implementations
+
+## ✅ MANDATORY VALIDATION CHECKLIST
+
+Before submitting your output, you MUST verify every item:
+
+### Code Validation
+- [ ] Every import statement references a file that exists in your output
+- [ ] Every function has actual implementation (no placeholders)
+- [ ] All dependencies are listed in package.json/requirements.txt
+- [ ] Entry point files exist (index.js, index.html, main.py, etc.)
+- [ ] No "TODO" or "implement this" comments remain
+
+### Completeness Validation
+- [ ] Frontend has ALL required files (components, pages, styles, assets)
+- [ ] Backend has ALL routes, controllers, models, middleware
+- [ ] Database schemas and connections are complete
+- [ ] CORS and security middleware are implemented
+- [ ] Error handling is implemented throughout
+
+### Documentation Validation
+- [ ] README.md exists with complete setup instructions
+- [ ] .env.example has ALL required variables with descriptions
+- [ ] Deployment guide has step-by-step instructions
+- [ ] API documentation is included (if applicable)
+- [ ] Troubleshooting section covers common issues
+
+### Integration Validation
+- [ ] Frontend can connect to backend (CORS configured)
+- [ ] Environment variables are properly used
+- [ ] File structure matches imports
+- [ ] Build commands will work
+- [ ] Deploy commands are accurate for chosen platform
+
 ## 📊 EXPECTED OUTPUT STRUCTURE
 
 Format your response EXACTLY like this:
@@ -2710,40 +2862,158 @@ Format your response EXACTLY like this:
 ## 🏗️ Technology Stack
 [List the exact technologies used, matching the chosen strategy]
 
+## 📋 FILE MANIFEST
+
+**Total Files Generated:** [NUMBER]
+
+This deployment kit includes the following files:
+
+### Frontend Files ([X] files)
+- `frontend/public/index.html` (52 lines) - Main HTML template
+- `frontend/src/index.js` (15 lines) - React entry point
+- `frontend/src/App.js` (120 lines) - Main application component
+- `frontend/src/components/[Name].js` ([X] lines) - [Description]
+- `frontend/src/styles.css` (85 lines) - Application styles
+- `frontend/package.json` (25 lines) - Frontend dependencies
+[List EVERY frontend file with line count and purpose]
+
+### Backend Files ([X] files)
+- `backend/server.js` (65 lines) - Express server setup
+- `backend/routes/api.js` (110 lines) - API route definitions
+- `backend/controllers/[name]Controller.js` ([X] lines) - [Description]
+- `backend/models/[Name].js` ([X] lines) - Database model
+- `backend/middleware/[name].js` ([X] lines) - [Description]
+- `backend/package.json` (20 lines) - Backend dependencies
+[List EVERY backend file with line count and purpose]
+
+### Configuration & Documentation ([X] files)
+- `README.md` (180 lines) - Complete setup and usage guide
+- `.env.example` (15 lines) - Environment variable template
+- `.gitignore` (25 lines) - Git ignore rules
+- `DEPLOYMENT.md` (120 lines) - Step-by-step deployment guide
+[List EVERY config/doc file]
+
 ## 📁 Project Structure
 ```
 /project-root
 ├── frontend/
-│   ├── src/
 │   ├── public/
-│   └── package.json
+│   │   ├── index.html ✅
+│   │   └── manifest.json ✅
+│   ├── src/
+│   │   ├── components/
+│   │   │   └── [Component].js ✅
+│   │   ├── App.js ✅
+│   │   ├── index.js ✅
+│   │   └── styles.css ✅
+│   └── package.json ✅
 ├── backend/
 │   ├── routes/
+│   │   └── api.js ✅
+│   ├── controllers/
+│   │   └── [name]Controller.js ✅
 │   ├── models/
-│   └── server.js
-├── .gitignore
-├── README.md
-└── .env.example
+│   │   └── [Name].js ✅
+│   ├── middleware/
+│   │   └── [name].js ✅
+│   ├── server.js ✅
+│   └── package.json ✅
+├── .gitignore ✅
+├── .env.example ✅
+├── README.md ✅
+└── DEPLOYMENT.md ✅
 ```
+
+## ✅ VALIDATION REPORT
+
+Before delivery, I verified:
+- ✅ All [X] imports are valid (no broken references)
+- ✅ All [X] functions have complete implementations
+- ✅ All [X] dependencies are listed in package.json/requirements.txt
+- ✅ Entry point files exist and are configured correctly
+- ✅ CORS is configured for frontend-backend communication
+- ✅ Error handling is implemented
+- ✅ README includes complete setup instructions
+- ✅ No placeholder code or TODOs remain
 
 ## 💻 Source Code Files
 
+### File: README.md
+```markdown
+[Complete README with setup, usage, deployment instructions]
+```
+
 ### File: .gitignore
 ```
-[Complete .gitignore content]
+[Complete .gitignore content for the tech stack]
 ```
 
-### File: package.json (or requirements.txt)
-```json
-[Complete dependency file with all packages and versions]
+### File: .env.example
+```
+[ALL required environment variables with descriptions]
 ```
 
-### File: frontend/src/App.js (or equivalent)
+### File: frontend/public/index.html
+```html
+[Complete HTML template]
+```
+
+### File: frontend/src/index.js
 ```javascript
-[Complete, working code]
+[Complete entry point]
 ```
 
-[Include ALL necessary files - frontend, backend, config, etc.]
+### File: frontend/src/App.js
+```javascript
+[Complete, working code with NO placeholders]
+```
+
+### File: frontend/src/components/[ComponentName].js
+```javascript
+[Complete component implementation]
+```
+
+### File: frontend/src/styles.css
+```css
+[Complete styling]
+```
+
+### File: frontend/package.json
+```json
+[Complete dependency file with ALL packages and exact versions]
+```
+
+### File: backend/server.js
+```javascript
+[Complete server setup with middleware, CORS, error handling]
+```
+
+### File: backend/routes/api.js
+```javascript
+[Complete API routes with actual implementations]
+```
+
+### File: backend/controllers/[name]Controller.js
+```javascript
+[Complete controller with full business logic - NO placeholders]
+```
+
+### File: backend/models/[Name].js
+```javascript
+[Complete database model]
+```
+
+### File: backend/middleware/[name].js
+```javascript
+[Complete middleware implementation]
+```
+
+### File: backend/package.json
+```json
+[Complete dependency file with ALL packages and exact versions]
+```
+
+[Include EVERY file needed for the application to run]
 
 ## 🔐 Environment Configuration
 
@@ -2809,21 +3079,55 @@ Format your response EXACTLY like this:
 5. **Integrate** everything into a cohesive deployment kit
 6. **Verify** completeness against the requirements
 
-## ✅ QUALITY CHECKLIST
+## ✅ FINAL QUALITY CHECKLIST
 
-Before submitting, verify:
-- [ ] All source code files are included and complete
-- [ ] Dependencies are listed with specific versions
-- [ ] .gitignore is properly configured
-- [ ] Environment variables are documented
-- [ ] Deployment guide is step-by-step and clear
-- [ ] Code follows best practices for the chosen stack
-- [ ] README is comprehensive
-- [ ] Local development instructions are included
+Before submitting, verify EVERY item below. An incomplete submission is REJECTED:
+
+### ✅ Code Completeness (MANDATORY)
+- [ ] Every file referenced in imports exists in your output
+- [ ] Every function has complete implementation (no "// TODO" or "// implement this")
+- [ ] Entry points exist: index.js, index.html, main.py, etc.
+- [ ] All components/modules used are actually generated
+- [ ] No broken references or missing files
+
+### ✅ Dependencies & Configuration (MANDATORY)
+- [ ] package.json/requirements.txt includes ALL dependencies with versions
+- [ ] .gitignore is complete for the tech stack
+- [ ] .env.example has ALL environment variables with descriptions
+- [ ] Config files are complete (tsconfig.json, webpack.config.js, etc.)
+
+### ✅ Functionality (MANDATORY)
+- [ ] Core features are FULLY IMPLEMENTED (not placeholders)
+- [ ] CORS is configured for frontend-backend communication
+- [ ] Error handling is implemented
+- [ ] Database connections work
+- [ ] API routes have actual logic
+
+### ✅ Documentation (MANDATORY)
+- [ ] README.md includes: overview, setup, run, deploy instructions
+- [ ] Deployment guide has step-by-step platform-specific instructions
+- [ ] API documentation included (if applicable)
+- [ ] Troubleshooting section included
+
+### ✅ File Manifest (MANDATORY)
+- [ ] File manifest lists ALL files with line counts
+- [ ] Total file count is realistic (15+ files minimum for full-stack apps)
+- [ ] All files in manifest are actually generated
 
 ---
 
-**Remember**: The user is counting on you to deliver a COMPLETE, WORKING, DEPLOYABLE application. This is not a mockup or proof-of-concept - it's the real thing.
+## 🎯 FINAL REMINDER
+
+**STOP AND VERIFY** before submitting:
+1. Can this code run with just `npm install && npm start` or equivalent?
+2. Are ALL imports valid (no missing files)?
+3. Are ALL functions implemented (no placeholders)?
+4. Is the README complete enough for someone to deploy this?
+5. Did you generate at LEAST 15-20 files for a full-stack app?
+
+**If you answer NO to any question above, DO NOT SUBMIT. Fix it first.**
+
+The user is counting on you to deliver a COMPLETE, WORKING, DEPLOYABLE application. This is not a mockup, tutorial, or proof-of-concept - it's the real thing that must work immediately.
 """
 
         try:
@@ -2989,17 +3293,24 @@ Before submitting, verify:
         # Show execution summary
         if st.session_state.execution_metadata:
             st.divider()
+            st.caption("📊 **Build Summary** (Server time displayed - may differ from your local timezone)")
             cols = st.columns(5)
             with cols[0]:
                 st.metric("⏱️ Build Time", format_time(st.session_state.execution_metadata.get('elapsed_time', 0)))
             with cols[1]:
-                st.metric("📦 Strategy", st.session_state.execution_metadata.get('strategy', 'N/A')[:20] + "...")
+                strategy_name = st.session_state.execution_metadata.get('strategy', 'N/A')
+                # Show first 15 chars if too long
+                display_strategy = strategy_name if len(strategy_name) <= 15 else strategy_name[:12] + "..."
+                st.metric("📦 Strategy", display_strategy)
             with cols[2]:
                 st.metric("🔑 API Keys", st.session_state.execution_metadata.get('api_keys_count', 0))
             with cols[3]:
                 st.metric("📁 Ref Files", st.session_state.execution_metadata.get('files_count', 0))
             with cols[4]:
-                st.metric("📅 Completed", st.session_state.execution_metadata.get('timestamp', 'N/A').split(' ')[1])
+                # Show time only (server time may differ from local time)
+                timestamp_str = st.session_state.execution_metadata.get('timestamp', 'N/A')
+                time_only = timestamp_str.split(' ')[1] if ' ' in timestamp_str else timestamp_str
+                st.metric("📅 Completed", time_only)
         
         st.divider()
         
@@ -3110,6 +3421,7 @@ Before submitting, verify:
                 st.session_state.chosen_strategy = None
                 st.session_state.user_selections = {}
                 st.session_state.api_keys = {}
+                st.session_state.api_key_inputs = {}
                 st.session_state.execution_result = None
                 st.session_state.execution_metadata = {}
                 st.success("🔄 Session reset! Starting fresh...")
