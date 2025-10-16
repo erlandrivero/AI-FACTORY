@@ -751,6 +751,13 @@ def find_orchestrator(agents: List[Dict[str, Any]]) -> Dict[str, Any] | None:
             return a
     return None
 
+def find_strategy_consultant(agents: List[Dict[str, Any]]) -> Dict[str, Any] | None:
+    """Find the strategy consultant agent (by role containing 'strategy consultant')."""
+    for a in agents:
+        if "strategy consultant" in a.get("role", "").lower():
+            return a
+    return None
+
 def format_time(seconds: int) -> str:
     """Format seconds into a human-readable time string."""
     if seconds < 60:
@@ -1246,101 +1253,996 @@ def build_crewai_agent(profile: Dict[str, Any]) -> Agent:
 # ------------------------------------------------------------------------------
 def project_execution_page():
     st.header("🚀 Project Execution")
-    st.write("Describe your project idea and launch your crew.")
+    st.write("Build complete applications with AI-powered agents.")
 
-    # Initialize session state for results and workflow
+    # Initialize session state for phase-based workflow
+    if 'phase' not in st.session_state:
+        st.session_state.phase = 'idea_input'
     if 'execution_result' not in st.session_state:
         st.session_state.execution_result = None
     if 'execution_metadata' not in st.session_state:
         st.session_state.execution_metadata = {}
-    if 'workflow_phase' not in st.session_state:
-        st.session_state.workflow_phase = None  # None, 'consultation', 'building'
     if 'consultation_result' not in st.session_state:
         st.session_state.consultation_result = None
+    if 'strategy_options' not in st.session_state:
+        st.session_state.strategy_options = None
+    if 'chosen_strategy' not in st.session_state:
+        st.session_state.chosen_strategy = None
     if 'user_selections' not in st.session_state:
         st.session_state.user_selections = {}
-
-    idea = st.text_area(
-        "Project Idea",
-        height=220,
-        placeholder=(
-            "Describe what you want to build or accomplish. "
-            "The Orchestrator will analyze and present options for tech stack, deployment platform, and GitHub setup."
-        ),
-        help="Type or paste your project idea here, then click Get Consultation below.",
-        key="project_idea_input",
-    )
+    if 'project_idea' not in st.session_state:
+        st.session_state.project_idea = ""
+    if 'uploaded_files_data' not in st.session_state:
+        st.session_state.uploaded_files_data = []
+    if 'deliverables_config' not in st.session_state:
+        st.session_state.deliverables_config = {
+            'code': True,
+            'deployment': True,
+            'docs': True,
+            'tests': False
+        }
+    if 'process_type' not in st.session_state:
+        st.session_state.process_type = 'Hierarchical'
+    if 'api_keys_collected' not in st.session_state:
+        st.session_state.api_keys_collected = {}
     
-    # Show consultation results if we have them
-    if st.session_state.consultation_result:
-        st.success("✅ Orchestrator has analyzed your project!")
+    # Show phase progress indicator
+    phases = ['idea_input', 'strategy_selection', 'info_gathering', 'building', 'complete']
+    phase_names = ['💡 Idea', '🎯 Strategy', '🔐 Config', '🚀 Building', '✅ Complete']
+    current_phase_idx = phases.index(st.session_state.phase) if st.session_state.phase in phases else 0
+    
+    cols = st.columns(len(phases))
+    for idx, (col, phase_name) in enumerate(zip(cols, phase_names)):
+        with col:
+            if idx < current_phase_idx:
+                st.success(f"✓ {phase_name}")
+            elif idx == current_phase_idx:
+                st.info(f"▶ {phase_name}")
+            else:
+                st.caption(phase_name)
+    
+    st.divider()
+    
+    # ============================================================================
+    # PHASE 1: IDEA INPUT
+    # ============================================================================
+    if st.session_state.phase == 'idea_input':
+        st.subheader("💡 Step 1: Describe Your Project")
+        st.write("Tell us what you want to build, and our Strategy Consultant will create solution packages for you.")
         
-        st.subheader("📊 Consultation Results")
-        st.markdown(st.session_state.consultation_result)
+        idea = st.text_area(
+            "Project Idea",
+            value=st.session_state.project_idea,
+            height=220,
+            placeholder=(
+                "Describe what you want to build or accomplish. "
+                "Our Strategy Consultant will analyze your idea and present solution packages with tech stack options."
+            ),
+            help="Type or paste your project idea here, then click Plan Strategy below.",
+            key="project_idea_input",
+        )
+        
+        # File upload section
+        st.subheader("📚 Background Materials (Optional)")
+        st.caption("Upload reference files for context (notebooks, docs, datasets, code, etc.)")
+        
+        uploaded_files = st.file_uploader(
+            "Upload files",
+            type=['ipynb', 'md', 'markdown', 'csv', 'txt', 'py', 'json'],
+            accept_multiple_files=True,
+            help="Upload Jupyter notebooks, markdown files, datasets, or code for context",
+            label_visibility="collapsed",
+            key="file_uploader_phase1"
+        )
+        
+        # Parse and display uploaded files
+        files_data = []
+        if uploaded_files:
+            st.write(f"**{len(uploaded_files)} file(s) uploaded:**")
+            cols_files = st.columns(min(len(uploaded_files), 3))
+            for idx, uploaded_file in enumerate(uploaded_files):
+                parsed = parse_uploaded_file(uploaded_file)
+                files_data.append(parsed)
+                with cols_files[idx % 3]:
+                    st.info(f"{parsed['icon']} **{parsed['name']}**\n\n{parsed['type']}")
         
         st.divider()
         
-        st.subheader("🎯 Make Your Selections")
-        st.caption("Review the options above and select your preferences below")
+        # Action button
+        col1, col2, col3 = st.columns([2, 1, 2])
+        with col2:
+            if st.button(
+                "🎯 Plan Strategy",
+                type="primary",
+                use_container_width=True,
+                disabled=not bool(idea.strip()),
+                help="Strategy Consultant will analyze your idea and create solution packages" if idea.strip() else "Enter a project idea to enable"
+            ):
+                if not OPENAI_KEY:
+                    st.error("OpenAI API key missing. Add it to `.streamlit/secrets.toml` and reload the app.")
+                else:
+                    # Save to session state
+                    st.session_state.project_idea = idea.strip()
+                    st.session_state.uploaded_files_data = files_data
+                    
+                    # Load agents and find Strategy Consultant
+                    saved_agents = load_agents()
+                    if not saved_agents:
+                        st.error("No agents are configured. Please add agents in **Agent Management**.")
+                    else:
+                        strategy_consultant = find_strategy_consultant(saved_agents)
+                        if not strategy_consultant:
+                            st.error("⚠️ Strategy Consultant Agent not found. Please create an agent with 'Strategy Consultant' in the role name.")
+                        else:
+                            # Build context from uploaded files
+                            file_context = build_context_from_files(files_data)
+                            
+                            # Strategy task - analyze and generate solution packages
+                            strategy_task_desc = (
+                                "You are the Strategy Consultant analyzing the user's project idea.\n\n"
+                                "🎯 YOUR ROLE:\n"
+                                "Analyze the project idea and generate 2-3 SOLUTION PACKAGES (technology stack options) "
+                                "that the user can choose from.\n\n"
+                                "⚠️ CRITICAL UNDERSTANDING:\n"
+                                "- If user says 'app' or 'application' → They want a WEB APPLICATION (React, Vue, Next.js, Flask, Django, etc.)\n"
+                                "- NOT notebooks, NOT Jupyter, NOT Google Colab unless specifically requested\n"
+                                "- Focus on DEPLOYABLE, USER-FACING applications\n"
+                                "- Think about the ENTIRE solution: frontend + backend + database + deployment\n\n"
+                                "📋 PROVIDE EXACTLY THIS FORMAT:\n\n"
+                                "## Solution Packages\n\n"
+                                "### Package A: [Descriptive Name]\n"
+                                "**Technology Stack:**\n"
+                                "- Frontend: [e.g., React with TypeScript]\n"
+                                "- Backend: [e.g., Node.js with Express]\n"
+                                "- Database: [e.g., PostgreSQL]\n"
+                                "- Deployment: [e.g., Vercel (frontend) + Railway (backend)]\n\n"
+                                "**Pros:**\n"
+                                "- [Benefit 1]\n"
+                                "- [Benefit 2]\n"
+                                "- [Benefit 3]\n\n"
+                                "**Cons:**\n"
+                                "- [Limitation 1]\n"
+                                "- [Limitation 2]\n\n"
+                                "**Best For:** [Ideal use case/scenario]\n"
+                                "**Estimated Build Time:** [X weeks]\n"
+                                "**Cost:** [Free tier available / $X per month]\n\n"
+                                "---\n\n"
+                                "(Repeat for Package B and Package C)\n\n"
+                                "## Recommendations\n\n"
+                                "**🏆 Best Overall:** Package [A/B/C] - [Brief reason]\n"
+                                "**⚡ Fastest to Build:** Package [X] - [Brief reason]\n"
+                                "**💰 Most Cost-Effective:** Package [Y] - [Brief reason]\n"
+                                "**🚀 Most Scalable:** Package [Z] - [Brief reason]\n\n"
+                                "## What You'll Get\n\n"
+                                "Regardless of which package you choose, you'll receive:\n"
+                                "- ✅ Complete source code files (frontend + backend)\n"
+                                "- ✅ Database schema and models\n"
+                                "- ✅ API endpoints and routing\n"
+                                "- ✅ Configuration files (package.json, requirements.txt, etc.)\n"
+                                "- ✅ .gitignore configured for your stack\n"
+                                "- ✅ Git initialization commands\n"
+                                "- ✅ GitHub repository setup guide\n"
+                                "- ✅ Deployment instructions for your chosen platform\n"
+                                "- ✅ README with setup, run, and deploy steps\n"
+                                "- ✅ Environment variables template\n\n"
+                                f"💡 USER'S PROJECT IDEA:\n{idea.strip()}\n"
+                                f"{file_context}\n\n"
+                                "⚠️ REMEMBER:\n"
+                                "- Present 2-3 COMPLETE solution packages\n"
+                                "- Each package should be a FULL-STACK solution (not just frontend or just backend)\n"
+                                "- Be specific about technologies (don't just say 'JavaScript', say 'React with TypeScript')\n"
+                                "- Consider the user's skill level and project complexity\n"
+                                "- Keep it concise but informative - user needs to make a decision quickly\n"
+                            )
+                            
+                            try:
+                                # Create Strategy Consultant agent
+                                strategy_agent = build_crewai_agent(strategy_consultant)
+                                
+                                # Create strategy task
+                                strategy_task = Task(
+                                    description=strategy_task_desc,
+                                    expected_output=(
+                                        "2-3 complete solution packages in the specified format, each including:\n"
+                                        "- Full technology stack (frontend, backend, database, deployment)\n"
+                                        "- Detailed pros and cons\n"
+                                        "- Best use case\n"
+                                        "- Time and cost estimates\n"
+                                        "Plus clear recommendations and a complete deliverables list."
+                                    ),
+                                    agent=strategy_agent
+                                )
+                                
+                                # Create crew with ONLY the Strategy Consultant
+                                strategy_crew = Crew(
+                                    agents=[strategy_agent],
+                                    tasks=[strategy_task],
+                                    process=Process.sequential,
+                                    verbose=True
+                                )
+                                
+                                # Run the strategy session
+                                with st.spinner("🎯 Strategy Consultant is analyzing your project and creating solution packages..."):
+                                    strategy_result = strategy_crew.kickoff()
+                                
+                                # Store the strategy options
+                                if hasattr(strategy_result, 'raw'):
+                                    st.session_state.strategy_options = str(strategy_result.raw)
+                                elif hasattr(strategy_result, 'output'):
+                                    st.session_state.strategy_options = str(strategy_result.output)
+                                else:
+                                    st.session_state.strategy_options = str(strategy_result)
+                                
+                                # Move to strategy selection phase
+                                st.session_state.phase = 'strategy_selection'
+                                st.success("✅ Solution packages created! Review your options.")
+                                st.rerun()
+                                
+                            except Exception as e:
+                                st.error(f"❌ Strategy planning failed: {e}")
+                                import traceback
+                                with st.expander("🔍 Error Details"):
+                                    st.code(traceback.format_exc())
+    
+    # ============================================================================
+    # PHASE 2: STRATEGY SELECTION
+    # ============================================================================
+    elif st.session_state.phase == 'strategy_selection' and st.session_state.strategy_options:
+        st.subheader("🎯 Step 2: Choose Your Solution Package")
+        st.write("Review the solution packages and select the one that best fits your needs.")
         
-        # Interactive selectors
-        col_sel1, col_sel2 = st.columns(2)
+        # Display strategy options in an expander
+        with st.expander("📦 Solution Packages Analysis", expanded=True):
+            st.markdown(st.session_state.strategy_options)
         
-        with col_sel1:
-            tech_choice = st.radio(
-                "🛠️ Technology Stack",
-                options=["Option A", "Option B", "Option C", "Custom"],
-                index=0,
-                help="Choose the tech stack you want to use"
-            )
-            
-            if tech_choice == "Custom":
-                custom_tech = st.text_input("Specify custom stack", placeholder="e.g., Vue.js + Firebase")
-                tech_choice = f"Custom: {custom_tech}" if custom_tech else "Option A"
+        st.divider()
         
-        with col_sel2:
-            platform_choice = st.selectbox(
-                "🚀 Deployment Platform",
-                options=[
-                    "Vercel",
-                    "Netlify", 
-                    "Streamlit Cloud",
-                    "Railway",
-                    "Render",
-                    "Heroku",
-                    "AWS/GCP/Azure",
-                    "As recommended"
-                ],
-                index=7,
-                help="Where do you want to deploy?"
-            )
+        # Package selection
+        st.subheader("✅ Select Your Package")
         
-        # Additional preferences
-        additional_prefs = st.text_area(
-            "💬 Additional Requirements (Optional)",
-            value=st.session_state.user_selections.get('additional', ''),
-            placeholder="Any other specific requirements or preferences...",
-            height=80
+        package_choice = st.radio(
+            "Which solution package would you like to use?",
+            options=["Package A", "Package B", "Package C", "Custom Solution"],
+            index=0,
+            help="Choose the package that best matches your requirements and constraints",
+            key="package_selection_radio"
         )
         
-        st.session_state.user_selections = {
-            'tech': tech_choice,
-            'platform': platform_choice,
-            'additional': additional_prefs
-        }
+        # If custom, allow specification
+        custom_details = ""
+        if package_choice == "Custom Solution":
+            custom_details = st.text_area(
+                "Describe your custom solution",
+                placeholder="e.g., Next.js + Supabase + Vercel, or Django + React + PostgreSQL + AWS",
+                height=100,
+                key="custom_solution_input"
+            )
+            if custom_details:
+                package_choice = f"Custom: {custom_details}"
+        
+        # Additional configuration
+        st.divider()
+        st.subheader("⚙️ Additional Configuration")
+        
+        col_config1, col_config2 = st.columns(2)
+        
+        with col_config1:
+            additional_features = st.text_area(
+                "Additional Features (Optional)",
+                placeholder="e.g., Real-time updates, Email notifications, Analytics dashboard...",
+                height=100,
+                key="additional_features_input"
+            )
+        
+        with col_config2:
+            special_requirements = st.text_area(
+                "Special Requirements (Optional)",
+                placeholder="e.g., GDPR compliance, Mobile-first design, Offline support...",
+                height=100,
+                key="special_requirements_input"
+            )
+        
+        st.divider()
+        
+        # Navigation buttons
+        col_nav1, col_nav2, col_nav3 = st.columns([1, 1, 1])
+        
+        with col_nav1:
+            if st.button("← Back to Idea", help="Go back to edit your project idea", key="back_to_idea_btn"):
+                st.session_state.phase = 'idea_input'
+                st.rerun()
+        
+        with col_nav3:
+            if st.button("Continue →", type="primary", help="Proceed to gather API keys", key="continue_from_strategy_btn"):
+                # Store the chosen strategy
+                st.session_state.chosen_strategy = package_choice
+                st.session_state.user_selections = {
+                    'package': package_choice,
+                    'additional_features': additional_features,
+                    'special_requirements': special_requirements
+                }
+                
+                # Move to info_gathering phase
+                st.session_state.phase = 'info_gathering'
+                st.success(f"✅ Selected: {package_choice}")
+                st.rerun()
     
-    # Deliverables Selection
-    st.subheader("📦 What to Build")
-    st.caption("Specify what deliverables you need")
+    # ============================================================================
+    # PHASE 3: INFO GATHERING (API Keys & Secrets)
+    # ============================================================================
+    elif st.session_state.phase == 'info_gathering':
+        st.subheader("🔐 Step 3: Configure API Keys & Secrets")
+        st.write("Provide the necessary API keys for your chosen technology stack.")
+        
+        # Show selected package
+        with st.expander("📦 Your Selected Package", expanded=False):
+            st.info(f"**Package:** {st.session_state.chosen_strategy}")
+            if st.session_state.user_selections.get('additional_features'):
+                st.write(f"**Additional Features:** {st.session_state.user_selections['additional_features']}")
+            if st.session_state.user_selections.get('special_requirements'):
+                st.write(f"**Special Requirements:** {st.session_state.user_selections['special_requirements']}")
+        
+        st.divider()
+        
+        # Detect required API keys based on chosen strategy
+        chosen_strategy_lower = str(st.session_state.chosen_strategy).lower()
+        strategy_options_lower = str(st.session_state.strategy_options).lower()
+        
+        required_keys = {}
+        optional_keys = {}
+        
+        # Deployment platforms
+        if "netlify" in chosen_strategy_lower or "netlify" in strategy_options_lower:
+            optional_keys["Netlify API Token"] = "Get from: app.netlify.com → User Settings → Applications → Personal access tokens"
+        if "vercel" in chosen_strategy_lower or "vercel" in strategy_options_lower:
+            optional_keys["Vercel Token"] = "Get from: vercel.com/account/tokens"
+        if "railway" in chosen_strategy_lower or "railway" in strategy_options_lower:
+            optional_keys["Railway Token"] = "Get from: railway.app/account/tokens"
+        if "render" in chosen_strategy_lower or "render" in strategy_options_lower:
+            optional_keys["Render API Key"] = "Get from: dashboard.render.com → Account Settings → API Keys"
+        if "heroku" in chosen_strategy_lower or "heroku" in strategy_options_lower:
+            optional_keys["Heroku API Key"] = "Get from: dashboard.heroku.com/account → API Key"
+        
+        # Databases
+        if "supabase" in chosen_strategy_lower:
+            required_keys["Supabase URL"] = "Your Supabase project URL"
+            required_keys["Supabase Anon Key"] = "Your Supabase anon/public key"
+        if "firebase" in chosen_strategy_lower:
+            required_keys["Firebase Config"] = "Your Firebase configuration object (JSON)"
+        if "mongodb" in chosen_strategy_lower and "atlas" in chosen_strategy_lower:
+            optional_keys["MongoDB Atlas URI"] = "Your MongoDB connection string"
+        if "postgres" in chosen_strategy_lower or "postgresql" in chosen_strategy_lower:
+            optional_keys["Database URL"] = "PostgreSQL connection string (e.g., postgresql://user:pass@host:5432/db)"
+        
+        # Services
+        if "openai" in chosen_strategy_lower or "gpt" in chosen_strategy_lower:
+            optional_keys["OpenAI API Key"] = "Get from: platform.openai.com/api-keys"
+        if "stripe" in chosen_strategy_lower:
+            optional_keys["Stripe API Key"] = "Get from: dashboard.stripe.com/apikeys"
+            optional_keys["Stripe Webhook Secret"] = "For webhook verification"
+        if "sendgrid" in chosen_strategy_lower or "email" in chosen_strategy_lower:
+            optional_keys["SendGrid API Key"] = "For email sending functionality"
+        if "twilio" in chosen_strategy_lower:
+            optional_keys["Twilio Account SID"] = "Your Twilio account SID"
+            optional_keys["Twilio Auth Token"] = "Your Twilio auth token"
+        
+        # Always useful
+        optional_keys["GitHub Token"] = "For automated deployment and CI/CD (get from: github.com/settings/tokens)"
+        
+        st.info("💡 **Tip:** You can skip this step and add API keys later during deployment. These are optional for the code generation phase.")
+        
+        # API Keys Form
+        with st.form("api_keys_form", clear_on_submit=False):
+            st.markdown("### 🔑 Required API Keys")
+            if required_keys:
+                required_values = {}
+                for key_name, key_help in required_keys.items():
+                    required_values[key_name] = st.text_input(
+                        f"🔴 {key_name} (Required)",
+                        type="password",
+                        help=key_help,
+                        key=f"required_{key_name.replace(' ', '_').lower()}"
+                    )
+            else:
+                st.success("✅ No required API keys detected for your chosen stack!")
+            
+            st.markdown("### 🔓 Optional API Keys")
+            if optional_keys:
+                optional_values = {}
+                for key_name, key_help in optional_keys.items():
+                    optional_values[key_name] = st.text_input(
+                        f"⚪ {key_name} (Optional)",
+                        type="password",
+                        help=key_help,
+                        key=f"optional_{key_name.replace(' ', '_').lower()}"
+                    )
+            
+            st.divider()
+            
+            # Form buttons
+            col_form1, col_form2, col_form3 = st.columns([1, 1, 1])
+            
+            with col_form1:
+                back_button = st.form_submit_button("← Back", help="Return to package selection")
+            
+            with col_form3:
+                submit_button = st.form_submit_button("Continue to Build →", type="primary", help="Proceed with building")
+            
+            # Handle form submission
+            if back_button:
+                st.session_state.phase = 'strategy_selection'
+                st.rerun()
+            
+            if submit_button:
+                # Validate required keys
+                if required_keys:
+                    all_required_filled = all(required_values.get(k, "").strip() for k in required_keys.keys())
+                    if not all_required_filled:
+                        st.error("❌ Please fill in all required API keys before continuing.")
+                        st.stop()
+                
+                # Store all API keys
+                api_keys = {}
+                
+                if required_keys:
+                    for key_name, value in required_values.items():
+                        if value.strip():
+                            api_keys[key_name] = value.strip()
+                
+                if optional_keys:
+                    for key_name, value in optional_values.items():
+                        if value.strip():
+                            api_keys[key_name] = value.strip()
+                
+                st.session_state.api_keys = api_keys
+                
+                # Move to building phase
+                st.session_state.phase = 'building'
+                st.success(f"✅ Configured {len(api_keys)} API key(s). Proceeding to build...")
+                st.rerun()
+        
+        st.divider()
+        
+        # Skip option outside the form
+        col_skip1, col_skip2, col_skip3 = st.columns([1, 1, 1])
+        with col_skip2:
+            if st.button("⏭️ Skip & Build", help="Skip API key configuration and proceed", key="skip_api_keys_btn"):
+                st.session_state.api_keys = {}
+                st.session_state.phase = 'building'
+                st.info("Skipped API key configuration. You can add them during deployment.")
+                st.rerun()
     
-    col_d1, col_d2 = st.columns(2)
-    with col_d1:
-        include_code = st.checkbox("✅ Generate actual code files", value=True, help="Generate ready-to-use source code")
-        include_deployment = st.checkbox("📋 Deployment instructions", value=True, help="Include deployment guides and configs")
-    with col_d2:
-        include_docs = st.checkbox("📚 Documentation", value=True, help="README, API docs, setup guides")
-        include_tests = st.checkbox("🧪 Test files", value=False, help="Generate unit tests and test cases")
+    # ============================================================================
+    # PHASE 4: BUILDING
+    # ============================================================================
+    elif st.session_state.phase == 'building':
+        st.subheader("🚀 Step 4: Building Your Project")
+        st.write("Our AI development crew is assembling your complete deployment kit...")
+        
+        # Show build configuration
+        with st.expander("📋 Build Configuration", expanded=False):
+            st.write(f"**Project Idea:** {st.session_state.project_idea[:200]}...")
+            st.write(f"**Chosen Strategy:** {st.session_state.chosen_strategy}")
+            if st.session_state.user_selections.get('additional_features'):
+                st.write(f"**Additional Features:** {st.session_state.user_selections['additional_features']}")
+            if st.session_state.user_selections.get('special_requirements'):
+                st.write(f"**Special Requirements:** {st.session_state.user_selections['special_requirements']}")
+            api_keys_count = len(st.session_state.get('api_keys', {}))
+            st.write(f"**API Keys Configured:** {api_keys_count}")
+            files_count = len(st.session_state.uploaded_files_data)
+            st.write(f"**Reference Files:** {files_count}")
+        
+        st.divider()
+        
+        # Load agents
+        saved_agents = load_agents()
+        if not saved_agents:
+            st.error("❌ No agents configured. Please add agents in **Agent Management**.")
+            if st.button("← Back to Config", key="back_from_building_no_agents"):
+                st.session_state.phase = 'info_gathering'
+                st.rerun()
+            return
+        
+        # Find Orchestrator
+        orchestrator_profile = find_orchestrator(saved_agents)
+        if not orchestrator_profile:
+            st.error("❌ Orchestrator Agent not found. Create an agent with 'Orchestrator' in the role name.")
+            if st.button("← Back to Config", key="back_from_building_no_orchestrator"):
+                st.session_state.phase = 'info_gathering'
+                st.rerun()
+            return
+        
+        # Build comprehensive context
+        file_context = build_context_from_files(st.session_state.uploaded_files_data)
+        
+        # Format API keys for the task
+        api_keys_context = ""
+        if st.session_state.get('api_keys'):
+            api_keys_context = "\n\n## 🔑 Provided API Keys & Configuration\n\n"
+            api_keys_context += "The user has provided the following API keys/configuration:\n\n"
+            for key_name, key_value in st.session_state.api_keys.items():
+                # Show key name and masked value for security
+                masked_value = key_value[:4] + "..." + key_value[-4:] if len(key_value) > 8 else "***"
+                api_keys_context += f"- **{key_name}**: `{masked_value}` (available for use)\n"
+            api_keys_context += "\n⚠️ **IMPORTANT**: Include setup instructions for these API keys in your deployment guide.\n"
+            api_keys_context += "Create environment variable templates and configuration examples.\n"
+        else:
+            api_keys_context = "\n\n## 🔑 API Keys\n\nNo API keys provided. Include placeholder configuration in your deployment guide.\n"
+        
+        # Format additional requirements
+        additional_context = ""
+        if st.session_state.user_selections.get('additional_features'):
+            additional_context += f"\n\n## ✨ Additional Features Requested\n\n{st.session_state.user_selections['additional_features']}\n"
+        if st.session_state.user_selections.get('special_requirements'):
+            additional_context += f"\n\n## ⚙️ Special Requirements\n\n{st.session_state.user_selections['special_requirements']}\n"
+        
+        # Build the comprehensive task description
+        orchestrator_task_desc = f"""
+# 🎯 PROJECT EXECUTION MISSION
+
+You are the Orchestrator leading a team of specialist agents to build a complete, production-ready application.
+
+## 📝 USER'S PROJECT IDEA
+
+{st.session_state.project_idea}
+
+## 🏗️ CHOSEN TECHNOLOGY STRATEGY
+
+{st.session_state.chosen_strategy}
+
+**You MUST implement the project using this exact technology stack.** Do not deviate from the chosen strategy unless technically impossible.
+{api_keys_context}
+{additional_context}
+{file_context}
+
+## 🎯 YOUR MISSION
+
+Your mission is to deliver a complete **Deployment Kit** that includes:
+
+### 1️⃣ Complete Source Code
+- **Frontend**: All UI components, pages, layouts, styles
+- **Backend**: API routes, controllers, services, middleware
+- **Database**: Schema definitions, models, migrations
+- **Configuration**: All config files (package.json, requirements.txt, tsconfig.json, etc.)
+- **Environment Setup**: .env.example with all required variables
+
+### 2️⃣ Essential Files
+- `.gitignore` (properly configured for the chosen tech stack)
+- `README.md` (comprehensive setup and usage guide)
+- `package.json` or `requirements.txt` (with ALL dependencies and versions)
+- Configuration files for the chosen framework/platform
+
+### 3️⃣ Deployment Guide
+- **Step-by-step deployment instructions** for the chosen platform
+- **Environment variable configuration** guide
+- **Database setup** instructions (if applicable)
+- **Domain and DNS** setup (if applicable)
+- **Troubleshooting** common issues
+
+### 4️⃣ Documentation
+- **Project overview** and architecture
+- **API documentation** (if applicable)
+- **Component documentation** (for complex UIs)
+- **Development workflow** (how to run locally, test, build)
+
+## 📋 CRITICAL REQUIREMENTS
+
+⚠️ **COMPLETENESS**: This must be a COMPLETE application, not a tutorial or example. Every file needed to deploy and run the application must be included.
+
+⚠️ **PRODUCTION-READY**: Code must be clean, well-commented, follow best practices, and be ready for production deployment.
+
+⚠️ **TECH STACK ADHERENCE**: You MUST use the chosen technology strategy. Do not substitute with different technologies.
+
+⚠️ **DEPLOYMENT-FOCUSED**: Provide exact, copy-paste-ready deployment instructions. Assume the user has basic technical knowledge but needs clear guidance.
+
+⚠️ **API KEY INTEGRATION**: If API keys were provided, show exactly where and how to use them in the code and deployment.
+
+## 📊 EXPECTED OUTPUT STRUCTURE
+
+Format your response EXACTLY like this:
+
+```markdown
+# 🏭 [PROJECT NAME] - Deployment Kit
+
+## 📖 Project Overview
+[2-3 paragraph description of what was built]
+
+## 🏗️ Technology Stack
+[List the exact technologies used, matching the chosen strategy]
+
+## 📁 Project Structure
+```
+/project-root
+├── frontend/
+│   ├── src/
+│   ├── public/
+│   └── package.json
+├── backend/
+│   ├── routes/
+│   ├── models/
+│   └── server.js
+├── .gitignore
+├── README.md
+└── .env.example
+```
+
+## 💻 Source Code Files
+
+### File: .gitignore
+```
+[Complete .gitignore content]
+```
+
+### File: package.json (or requirements.txt)
+```json
+[Complete dependency file with all packages and versions]
+```
+
+### File: frontend/src/App.js (or equivalent)
+```javascript
+[Complete, working code]
+```
+
+[Include ALL necessary files - frontend, backend, config, etc.]
+
+## 🔐 Environment Configuration
+
+### File: .env.example
+```
+[All required environment variables with descriptions]
+```
+
+## 🚀 Deployment Guide
+
+### Prerequisites
+- [List what user needs installed]
+
+### Step 1: Clone and Setup
+```bash
+[Exact commands]
+```
+
+### Step 2: Configure Environment
+[How to set up .env file with API keys]
+
+### Step 3: Database Setup (if applicable)
+[Database initialization steps]
+
+### Step 4: Deploy to [Platform Name]
+[Platform-specific deployment steps]
+
+### Step 5: Verify Deployment
+[How to test that it's working]
+
+## 🧪 Local Development
+
+### Install Dependencies
+```bash
+[Commands to install]
+```
+
+### Run Development Server
+```bash
+[Commands to run]
+```
+
+### Build for Production
+```bash
+[Commands to build]
+```
+
+## 🔧 Troubleshooting
+
+[Common issues and solutions]
+
+## 📚 Additional Resources
+
+[Helpful links and documentation]
+```
+
+## ⚡ EXECUTION STRATEGY
+
+1. **Analyze** the project idea and chosen strategy
+2. **Design** the complete architecture
+3. **Delegate** specific tasks to specialist agents (Frontend Coder, Backend Coder, etc.)
+4. **Coordinate** the outputs from all agents
+5. **Integrate** everything into a cohesive deployment kit
+6. **Verify** completeness against the requirements
+
+## ✅ QUALITY CHECKLIST
+
+Before submitting, verify:
+- [ ] All source code files are included and complete
+- [ ] Dependencies are listed with specific versions
+- [ ] .gitignore is properly configured
+- [ ] Environment variables are documented
+- [ ] Deployment guide is step-by-step and clear
+- [ ] Code follows best practices for the chosen stack
+- [ ] README is comprehensive
+- [ ] Local development instructions are included
+
+---
+
+**Remember**: The user is counting on you to deliver a COMPLETE, WORKING, DEPLOYABLE application. This is not a mockup or proof-of-concept - it's the real thing.
+"""
+
+        try:
+            # Create Orchestrator agent
+            orchestrator_agent = build_crewai_agent(orchestrator_profile)
+            
+            # Create comprehensive task
+            build_task = Task(
+                description=orchestrator_task_desc,
+                expected_output=(
+                    "A complete Deployment Kit in markdown format containing:\n"
+                    "1. All source code files (frontend, backend, database, config)\n"
+                    "2. .gitignore file\n"
+                    "3. Complete dependency files (package.json, requirements.txt, etc.)\n"
+                    "4. Environment configuration (.env.example)\n"
+                    "5. Step-by-step deployment guide for the chosen platform\n"
+                    "6. README with project overview and local development instructions\n"
+                    "7. Troubleshooting section\n\n"
+                    "Format: Each file must be in markdown code blocks with clear file paths.\n"
+                    f"Tech Stack: MUST match {st.session_state.chosen_strategy}\n"
+                    "Quality: Production-ready, complete, and immediately deployable."
+                ),
+                agent=orchestrator_agent
+            )
+            
+            # Create crew (Orchestrator can delegate to other agents)
+            build_crew = Crew(
+                agents=[orchestrator_agent],
+                tasks=[build_task],
+                process=Process.hierarchical,
+                manager_agent=orchestrator_agent,
+                verbose=True
+            )
+            
+            # Execute with progress tracking
+            start_time = time.time()
+            
+            progress_container = st.container()
+            with progress_container:
+                st.markdown("### 🏗️ Building Your Application")
+                progress_bar = st.progress(0, text="Initializing development crew...")
+                status_text = st.empty()
+                time_display = st.empty()
+            
+            status_messages = [
+                "🎯 Orchestrator analyzing project requirements...",
+                "📋 Breaking down into development tasks...",
+                "👥 Delegating to specialist agents...",
+                "💻 Frontend team building UI components...",
+                "⚙️ Backend team implementing API logic...",
+                "🗄️ Database team creating schemas...",
+                "🔧 DevOps team preparing deployment configs...",
+                "📝 Documentation team writing guides...",
+                "✨ Integration team assembling components...",
+                "🔍 QA team reviewing code quality...",
+                "📦 Packaging deployment kit...",
+            ]
+            
+            # Run crew in thread for progress animation
+            import threading
+            result_container = {"result": None, "error": None, "completed": False}
+            
+            def run_crew():
+                try:
+                    result_container["result"] = build_crew.kickoff()
+                except Exception as e:
+                    result_container["error"] = e
+                finally:
+                    result_container["completed"] = True
+            
+            thread = threading.Thread(target=run_crew)
+            thread.start()
+            
+            # Animate progress
+            progress = 0
+            msg_index = 0
+            while not result_container["completed"]:
+                elapsed = int(time.time() - start_time)
+                
+                progress = min(95, progress + 1)
+                progress_bar.progress(progress, text=status_messages[msg_index % len(status_messages)])
+                
+                status_text.info(f"⏱️ **Elapsed Time:** {format_time(elapsed)}")
+                
+                if elapsed % 5 == 0 and elapsed > 0:
+                    msg_index += 1
+                
+                time.sleep(1)
+            
+            thread.join()
+            
+            # Check for errors
+            if result_container["error"]:
+                progress_container.empty()
+                st.error(f"❌ Build failed: {result_container['error']}")
+                with st.expander("🔍 Error Details"):
+                    st.code(str(result_container['error']))
+                
+                if st.button("← Back to Config", key="back_from_building_error"):
+                    st.session_state.phase = 'info_gathering'
+                    st.rerun()
+                return
+            
+            result = result_container["result"]
+            
+            # Complete progress
+            progress_bar.progress(100, text="✅ Build Complete!")
+            elapsed_time = int(time.time() - start_time)
+            time_display.success(f"🎉 **Completed in {format_time(elapsed_time)}!**")
+            time.sleep(2)
+            progress_container.empty()
+            
+            # Extract and store result
+            if hasattr(result, 'raw'):
+                final_output = str(result.raw)
+            elif hasattr(result, 'output'):
+                final_output = str(result.output)
+            else:
+                final_output = str(result)
+            
+            # Store results in session state
+            st.session_state.execution_result = final_output
+            st.session_state.execution_metadata = {
+                'elapsed_time': elapsed_time,
+                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'idea': st.session_state.project_idea,
+                'strategy': st.session_state.chosen_strategy,
+                'api_keys_count': len(st.session_state.get('api_keys', {})),
+                'files_count': len(st.session_state.uploaded_files_data)
+            }
+            
+            # Move to complete phase
+            st.session_state.phase = 'complete'
+            st.success("✅ Your deployment kit is ready!")
+            st.rerun()
+            
+        except Exception as e:
+            st.error(f"❌ Build execution failed: {e}")
+            import traceback
+            with st.expander("🔍 Error Details"):
+                st.code(traceback.format_exc())
+            
+            if st.button("← Back to Config", key="back_from_building_exception"):
+                st.session_state.phase = 'info_gathering'
+                st.rerun()
     
+    # ============================================================================
+    # PHASE 5: COMPLETE
+    # ============================================================================
+    elif st.session_state.phase == 'complete':
+        st.subheader("✅ Step 5: Your Project is Ready!")
+        st.write("Your complete deployment kit has been generated and is ready for download.")
+        
+        # Show execution summary
+        if st.session_state.execution_metadata:
+            st.divider()
+            cols = st.columns(5)
+            with cols[0]:
+                st.metric("⏱️ Build Time", format_time(st.session_state.execution_metadata.get('elapsed_time', 0)))
+            with cols[1]:
+                st.metric("📦 Strategy", st.session_state.execution_metadata.get('strategy', 'N/A')[:20] + "...")
+            with cols[2]:
+                st.metric("🔑 API Keys", st.session_state.execution_metadata.get('api_keys_count', 0))
+            with cols[3]:
+                st.metric("📁 Ref Files", st.session_state.execution_metadata.get('files_count', 0))
+            with cols[4]:
+                st.metric("📅 Completed", st.session_state.execution_metadata.get('timestamp', 'N/A').split(' ')[1])
+        
+        st.divider()
+        
+        # Display the deployment kit
+        if st.session_state.execution_result:
+            result_text = st.session_state.execution_result
+            
+            st.subheader("📦 Your Deployment Kit")
+            st.markdown(result_text)
+            
+            st.divider()
+            
+            # Export options
+            st.subheader("💾 Download Options")
+            
+            col_dl1, col_dl2, col_dl3 = st.columns(3)
+            
+            with col_dl1:
+                st.download_button(
+                    label="📄 Download Markdown",
+                    data=result_text,
+                    file_name=f"deployment_kit_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
+                    mime="text/markdown",
+                    use_container_width=True,
+                    help="Download the complete deployment kit as markdown"
+                )
+            
+            with col_dl2:
+                # Extract code files and create ZIP
+                code_files = extract_code_files_from_result(result_text)
+                if code_files:
+                    project_name = st.session_state.project_idea[:30].replace(' ', '_')
+                    zip_data = create_project_zip(code_files, project_name)
+                    st.download_button(
+                        label=f"📦 Download ZIP ({len(code_files)} files)",
+                        data=zip_data,
+                        file_name=f"{project_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip",
+                        mime="application/zip",
+                        use_container_width=True,
+                        help="Download all source code files as a ZIP archive"
+                    )
+                else:
+                    st.button("📦 No Files Detected", disabled=True, use_container_width=True)
+            
+            with col_dl3:
+                st.download_button(
+                    label="📝 Download Text",
+                    data=result_text,
+                    file_name=f"deployment_kit_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+                    mime="text/plain",
+                    use_container_width=True,
+                    help="Download as plain text file"
+                )
+            
+            # Local folder save option
+            if code_files:
+                st.divider()
+                st.caption("💻 **Save to Local Folder** (optional - works only when running locally)")
+                
+                col_path, col_save = st.columns([3, 1])
+                with col_path:
+                    folder_path = st.text_input(
+                        "Folder Path",
+                        placeholder="e.g., C:\\Projects\\my-app or /Users/name/projects/my-app",
+                        help="Absolute path where project files should be saved",
+                        label_visibility="collapsed",
+                        key="local_folder_path_input"
+                    )
+                
+                with col_save:
+                    if st.button("💾 Save Files", disabled=not folder_path, use_container_width=True, key="save_to_local_btn"):
+                        success, result_data = write_files_to_directory(code_files, folder_path)
+                        if success:
+                            st.success(f"✅ Saved {len(result_data)} files to {folder_path}!")
+                            with st.expander("📁 Files created"):
+                                for file in result_data:
+                                    st.code(file)
+                        else:
+                            st.error(f"❌ Failed to save files: {result_data}")
+        
+        st.divider()
+        
+        # Action buttons
+        col_action1, col_action2, col_action3 = st.columns([1, 1, 1])
+        
+        with col_action2:
+            if st.button("🔄 Start New Project", type="primary", use_container_width=True, key="start_new_project_btn"):
+                # Reset all session state
+                st.session_state.phase = 'idea_input'
+                st.session_state.project_idea = ""
+                st.session_state.uploaded_files_data = []
+                st.session_state.strategy_options = None
+                st.session_state.chosen_strategy = None
+                st.session_state.user_selections = {}
+                st.session_state.api_keys = {}
+                st.session_state.execution_result = None
+                st.session_state.execution_metadata = {}
+                st.success("🔄 Session reset! Starting fresh...")
+                st.rerun()
+    
+    # ============================================================================
+    # FALLBACK: Legacy code for backward compatibility
+    # ============================================================================
+    else:
+        # This should not be reached with proper phase management
+        st.warning(f"⚠️ Unknown phase: {st.session_state.phase}")
+        if st.button("🔄 Reset to Start"):
+            st.session_state.phase = 'idea_input'
+            st.rerun()
+    
+    # Legacy code below - kept for backward compatibility with building phase
+    # This section runs for all phases (including else fallback)
     # File upload section
     st.subheader("📚 Background Materials (Optional)")
     st.caption("Upload reference files for agents to review (notebooks, docs, datasets, code, etc.)")
