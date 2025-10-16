@@ -1531,6 +1531,38 @@ def find_strategy_consultant(agents: List[Dict[str, Any]]) -> Dict[str, Any] | N
             return a
     return None
 
+def find_agent_by_role(agents: List[Dict[str, Any]], role_keywords: str) -> Dict[str, Any] | None:
+    """Find an agent by role keywords (case-insensitive)."""
+    keywords_lower = role_keywords.lower()
+    for a in agents:
+        if keywords_lower in a.get("role", "").lower():
+            return a
+    return None
+
+def find_code_extractor(agents: List[Dict[str, Any]]) -> Dict[str, Any] | None:
+    """Find the code extractor agent."""
+    return find_agent_by_role(agents, "code extractor")
+
+def find_product_manager(agents: List[Dict[str, Any]]) -> Dict[str, Any] | None:
+    """Find the product manager agent."""
+    return find_agent_by_role(agents, "product manager")
+
+def find_solutions_architect(agents: List[Dict[str, Any]]) -> Dict[str, Any] | None:
+    """Find the solutions architect agent."""
+    return find_agent_by_role(agents, "solutions architect")
+
+def find_integration_coordinator(agents: List[Dict[str, Any]]) -> Dict[str, Any] | None:
+    """Find the integration coordinator agent."""
+    return find_agent_by_role(agents, "integration coordinator")
+
+def find_qa_validation(agents: List[Dict[str, Any]]) -> Dict[str, Any] | None:
+    """Find the QA validation agent."""
+    return find_agent_by_role(agents, "quality assurance")
+
+def find_documentation_specialist(agents: List[Dict[str, Any]]) -> Dict[str, Any] | None:
+    """Find the documentation specialist agent."""
+    return find_agent_by_role(agents, "documentation specialist")
+
 def format_time(seconds: int) -> str:
     """Format seconds into a human-readable time string."""
     if seconds < 60:
@@ -2190,6 +2222,36 @@ def get_common_api_key_placeholders() -> tuple:
     
     return required_keys, optional_keys
 
+def run_single_agent_task(agent_profile: Dict[str, Any], task_description: str, expected_output: str) -> str:
+    """
+    Run a single agent on a specific task and return the result.
+    Used for multi-phase workflows (PM → Architect → Extract → etc.)
+    """
+    try:
+        # Build the agent
+        agent = build_crewai_agent(agent_profile)
+        
+        # Create the task
+        task = Task(
+            description=task_description,
+            expected_output=expected_output,
+            agent=agent
+        )
+        
+        # Create a crew with just this one agent
+        crew = Crew(
+            agents=[agent],
+            tasks=[task],
+            process=Process.sequential,
+            verbose=False  # Less verbose for sub-tasks
+        )
+        
+        # Execute and return result
+        result = crew.kickoff()
+        return str(result)
+    except Exception as e:
+        return f"Error running {agent_profile.get('role', 'agent')}: {str(e)}"
+
 # ------------------------------------------------------------------------------
 # PAGE: Project Execution
 # ------------------------------------------------------------------------------
@@ -2711,8 +2773,140 @@ Or paste as JSON, YAML, or any format - agents will parse it.""",
                 st.rerun()
             return
         
-        # Build comprehensive context
+        # Initialize phase results in session state
+        if 'phase_results' not in st.session_state:
+            st.session_state.phase_results = {}
+        
+        # ==================================================================================
+        # MULTI-PHASE WORKFLOW
+        # ==================================================================================
+        st.markdown("### 📊 Multi-Phase Build Process")
+        
+        phase_tracker = st.empty()
+        phases_completed = []
+        
+        # PHASE 1: CODE EXTRACTION (if user provided implementation files)
+        extracted_patterns = ""
+        if st.session_state.uploaded_files_data and 'code_extraction' not in st.session_state.phase_results:
+            code_extractor = find_code_extractor(saved_agents)
+            if code_extractor:
+                with st.status("🔍 Phase 1: Extracting Code Patterns from Your Files...", expanded=True) as status:
+                    st.write("Analyzing implementation files to extract specific code patterns, algorithms, and logic...")
+                    
+                    file_context_raw = build_context_from_files(st.session_state.uploaded_files_data)
+                    
+                    extraction_task = f"""
+Analyze the following implementation files provided by the user and extract ALL specific code patterns, algorithms, functions, and implementation details.
+
+{file_context_raw}
+
+## Target Technology Stack
+{st.session_state.chosen_strategy}
+
+## Your Task
+Extract and document:
+1. **Exact Code Patterns**: Copy function definitions, class structures, algorithm implementations
+2. **ML Models**: Note model types, parameters, hyperparameters, training procedures
+3. **Data Processing**: Extract pandas operations, data cleaning steps, transformations
+4. **UI Components**: Identify component structures, props, event handlers
+5. **API Endpoints**: Note route definitions, request/response formats
+6. **Dependencies**: List all libraries and packages needed
+
+## Output Format
+For each extracted pattern, provide:
+- **Pattern Name**: Descriptive title
+- **Type**: Function/Class/Component/Endpoint/Model
+- **Original Code**: The exact code snippet (if present)
+- **Purpose**: What it does
+- **Dependencies**: Required libraries
+- **Translation Notes**: If target stack differs, note how to translate
+
+**IMPORTANT**: Extract SPECIFIC code, not generic descriptions. We need actual implementations that can be copied directly into the project.
+"""
+                    
+                    expected_output = "A comprehensive list of extracted code patterns with exact code snippets, organized by category (functions, models, components, etc.) with translation notes if needed."
+                    
+                    extracted_patterns = run_single_agent_task(code_extractor, extraction_task, expected_output)
+                    st.session_state.phase_results['code_extraction'] = extracted_patterns
+                    
+                    status.update(label="✅ Phase 1: Code Extraction Complete", state="complete")
+                    phases_completed.append("Code Extraction")
+            else:
+                st.info("ℹ️ Code Extractor agent not found - skipping pattern extraction")
+                extracted_patterns = ""
+        elif 'code_extraction' in st.session_state.phase_results:
+            extracted_patterns = st.session_state.phase_results['code_extraction']
+            phases_completed.append("Code Extraction (Cached)")
+        
+        # PHASE 2: ARCHITECTURE DESIGN (optional but recommended)
+        architecture_doc = ""
+        if 'architecture' not in st.session_state.phase_results:
+            solutions_architect = find_solutions_architect(saved_agents)
+            if solutions_architect:
+                with st.status("🏗️ Phase 2: Designing Technical Architecture...", expanded=True) as status:
+                    st.write("Creating detailed system architecture, database schemas, and API contracts...")
+                    
+                    arch_task = f"""
+Based on the selected technology package and user requirements, design the complete technical architecture for this project.
+
+## Project Idea
+{st.session_state.project_idea}
+
+## Chosen Technology Stack
+{st.session_state.chosen_strategy}
+
+## User Requirements
+{st.session_state.user_selections.get('additional_features', 'None specified')}
+{st.session_state.user_selections.get('special_requirements', 'None specified')}
+
+## Extracted Code Patterns
+{extracted_patterns if extracted_patterns else 'No code patterns extracted'}
+
+## Your Task
+Design:
+1. **System Component Diagram**: Frontend, backend, database, external services
+2. **Database Schema**: Tables/collections, fields, relationships, indexes
+3. **API Contract**: All endpoints with request/response schemas
+4. **Frontend Architecture**: Component hierarchy, state management, routing
+5. **Integration Points**: How components communicate
+6. **Security Measures**: Authentication, validation, CORS
+7. **Performance Considerations**: Optimization strategies
+
+Output a Technical Design Document (TDD) in Markdown that developers can follow to implement the system.
+"""
+                    
+                    expected_arch = "A comprehensive Technical Design Document with system diagrams, database schemas, API specifications, and frontend architecture."
+                    
+                    architecture_doc = run_single_agent_task(solutions_architect, arch_task, expected_arch)
+                    st.session_state.phase_results['architecture'] = architecture_doc
+                    
+                    status.update(label="✅ Phase 2: Architecture Design Complete", state="complete")
+                    phases_completed.append("Architecture Design")
+            else:
+                st.info("ℹ️ Solutions Architect agent not found - proceeding without detailed architecture")
+        elif 'architecture' in st.session_state.phase_results:
+            architecture_doc = st.session_state.phase_results['architecture']
+            phases_completed.append("Architecture Design (Cached)")
+        
+        # Build comprehensive context for orchestrator
         file_context = build_context_from_files(st.session_state.uploaded_files_data)
+        
+        # Add extracted patterns to context (replaces raw files)
+        if extracted_patterns:
+            file_context = f"""
+## 📋 EXTRACTED CODE PATTERNS FROM USER FILES
+
+{extracted_patterns}
+
+### 🎯 CRITICAL INSTRUCTION
+The patterns above were extracted from the user's implementation files. You MUST use these exact patterns in your implementation:
+- If a pattern shows a specific ML model → Use that exact model with those parameters
+- If a pattern shows data cleaning steps → Implement those exact steps
+- If a pattern shows a UI component → Build that exact component
+- DO NOT create generic/placeholder versions - use the ACTUAL code patterns shown above
+
+{file_context}
+"""
         
         # Format configuration for agents - pass raw, let them parse
         config_context = ""
@@ -2785,6 +2979,10 @@ You are the Orchestrator leading a team of specialist agents to build a complete
    - Just mentioning "React + MongoDB" does NOT mean "use MERN"
    - **Example**: Package B (Flask) + User says "React + MongoDB" = Flask backend + React frontend + MongoDB ✅
    - **Example**: Package B (Flask) + User says "use Node.js backend" = Node.js backend ✅
+
+## 🏛️ TECHNICAL ARCHITECTURE
+{architecture_doc if architecture_doc else 'No detailed architecture provided - design as you implement'}
+
 {config_context}
 {additional_context}
 {file_context}
@@ -2906,6 +3104,81 @@ Your mission is to deliver a complete **Deployment Kit** that includes:
 ⚠️ **DEPLOYMENT-FOCUSED**: Provide exact, copy-paste-ready deployment instructions. Assume the user has basic technical knowledge but needs clear guidance.
 
 ⚠️ **API KEY INTEGRATION**: If API keys were provided, show exactly where and how to use them in the code and deployment.
+
+⚠️ **IMPLEMENTATION FILES USAGE**: If user provided implementation files (notebooks, guides, code examples), you MUST extract and use the actual code from those files. Do NOT create mock/placeholder versions.
+
+## 📝 HOW TO USE IMPLEMENTATION FILES
+
+If the user provided implementation files, follow this process:
+
+### Step 1: Extract Code Patterns
+**Read the implementation files and identify:**
+- Function definitions → Copy the logic
+- Algorithm implementations → Use the same algorithms
+- Data processing steps → Implement those exact steps
+- UI components → Build those components
+- API endpoints → Create those routes
+
+### Step 2: Translate If Needed
+**If tech stacks differ:**
+- Python notebook → Node.js backend: Translate pandas operations to JavaScript equivalents
+- Python ML code → Browser ML: Use ML.js equivalents of scikit-learn models
+- Preserve the LOGIC and FUNCTIONALITY even if syntax changes
+
+### Step 3: Real Examples
+
+**Example 1: ML Model from Notebook**
+```
+User's file has:
+    model = RandomForestClassifier(n_estimators=100, max_depth=10)
+    model.fit(X_train, y_train)
+    predictions = model.predict(X_test)
+
+❌ WRONG: def train_model(data): # Training logic here...
+
+✅ RIGHT: 
+    from sklearn.ensemble import RandomForestClassifier
+    model = RandomForestClassifier(n_estimators=100, max_depth=10)
+    model.fit(X_train, y_train)
+    predictions = model.predict(X_test)
+```
+
+**Example 2: Data Cleaning Steps**
+```
+User's file has:
+    df = df.dropna()
+    df['column'] = df['column'].fillna(df['column'].mean())
+    df = df[df['value'] > 0]
+
+❌ WRONG: cleaned_data = []  # Data cleaning logic...
+
+✅ RIGHT:
+    df = df.dropna()
+    df['column'] = df['column'].fillna(df['column'].mean())
+    df = df[df['value'] > 0]
+```
+
+**Example 3: UI Component**
+```
+User's file has:
+    <ConfusionMatrix data={{matrix}} labels={{labels}} />
+    - Shows heatmap
+    - Color-coded cells
+    - Displays percentages
+
+❌ WRONG: <div>{{/* Confusion matrix display */}}</div>
+
+✅ RIGHT: Build actual ConfusionMatrix component with heatmap library
+```
+
+### Step 4: Verify You Used Files
+**Before submitting, ask yourself:**
+1. Did I read the implementation files? YES/NO
+2. Did I extract specific code/logic from them? YES/NO
+3. Did I use that code in my implementation? YES/NO
+4. Or did I create generic placeholders instead? (If YES = FAIL)
+
+**If you answer NO to questions 1-3, STOP and actually use the files!**
 
 ## 🚫 ABSOLUTELY FORBIDDEN - REAL EXAMPLES
 
@@ -3445,6 +3718,165 @@ The user is counting on you to deliver a COMPLETE, WORKING, DEPLOYABLE applicati
                 final_output = str(result.output)
             else:
                 final_output = str(result)
+            
+            # ==================================================================================
+            # POST-PROCESSING PHASES
+            # ==================================================================================
+            
+            # PHASE 3: INTEGRATION VALIDATION (if agent available)
+            integration_report = ""
+            if 'integration_check' not in st.session_state.phase_results:
+                integration_coordinator = find_integration_coordinator(saved_agents)
+                if integration_coordinator:
+                    with st.status("🔗 Phase 3: Validating Component Integration...", expanded=True) as status:
+                        st.write("Checking frontend-backend communication, API contracts, and configuration consistency...")
+                        
+                        integration_task = f"""
+Review the generated code and validate that all components integrate correctly.
+
+## Generated Code
+{final_output[:5000]}... (truncated for review)
+
+## Your Task
+Validate:
+1. **API Contract Consistency**: Frontend requests match backend endpoints
+2. **Data Flow**: Database schema → Backend models → API responses → Frontend state
+3. **Configuration Sync**: CORS, environment variables, connection strings
+4. **Dependency Compatibility**: No conflicting package versions
+5. **Deployment Readiness**: Services can reach each other after deployment
+
+Output an Integration Report identifying any mismatches, missing configurations, or integration issues.
+If everything looks good, confirm: "✅ All components integrate correctly."
+"""
+                        
+                        expected_integration = "An integration report listing any issues found or confirming all components integrate correctly."
+                        
+                        integration_report = run_single_agent_task(integration_coordinator, integration_task, expected_integration)
+                        st.session_state.phase_results['integration_check'] = integration_report
+                        
+                        status.update(label="✅ Phase 3: Integration Validation Complete", state="complete")
+                        phases_completed.append("Integration Validation")
+                else:
+                    st.info("ℹ️ Integration Coordinator not found - skipping integration check")
+            elif 'integration_check' in st.session_state.phase_results:
+                integration_report = st.session_state.phase_results['integration_check']
+                phases_completed.append("Integration Validation (Cached)")
+            
+            # PHASE 4: QA VALIDATION (critical - check for placeholder code)
+            qa_report = ""
+            if 'qa_validation' not in st.session_state.phase_results:
+                qa_validator = find_qa_validation(saved_agents)
+                if qa_validator:
+                    with st.status("🔍 Phase 4: Quality Assurance Validation...", expanded=True) as status:
+                        st.write("Performing comprehensive QA: checking for placeholder code, broken imports, incomplete implementations...")
+                        
+                        qa_task = f"""
+Perform comprehensive QA validation on the generated deployment kit.
+
+## Generated Code
+{final_output}
+
+## VALIDATION CHECKLIST
+Run through your complete validation checklist:
+
+**Code Quality:**
+1. Check for placeholder comments: "// TODO", "# Logic here", "{{/* Add logic */}}"
+2. Check for empty functions or handlers
+3. Check for mock/hardcoded test data
+4. Verify all imports reference existing files
+5. Confirm all functions have complete implementations
+
+**Completeness:**
+6. Verify entry points exist (server.py, index.html, App.js)
+7. Check dependencies are listed completely
+8. Verify .env.example documents all variables
+9. Count files (should be 15+ for full-stack apps)
+
+**Documentation:**
+10. README has setup instructions
+11. Deployment guide is complete
+12. API endpoints are documented
+
+**Architecture:**
+13. CORS configured correctly
+14. Error handling present
+15. Input validation implemented
+
+## OUTPUT FORMAT
+Provide:
+- **Overall Status**: ✅ PASS or ❌ FAIL
+- **Failed Checks**: List violations with file/line references
+- **Severity**: Critical/High/Medium/Low for each issue
+- **Recommendations**: Specific fixes needed
+
+Be thorough and uncompromising. If code has placeholders or is incomplete, REJECT it.
+"""
+                        
+                        expected_qa = "A comprehensive QA report with pass/fail status, list of issues found (if any), and recommendations."
+                        
+                        qa_report = run_single_agent_task(qa_validator, qa_task, expected_qa)
+                        st.session_state.phase_results['qa_validation'] = qa_report
+                        
+                        status.update(label="✅ Phase 4: QA Validation Complete", state="complete")
+                        phases_completed.append("QA Validation")
+                        
+                        # Check if QA rejected the code
+                        if "❌ FAIL" in qa_report or "REJECT" in qa_report.upper():
+                            st.error("🚨 QA Validation Failed! The code has quality issues that need to be fixed.")
+                            with st.expander("📋 QA Report", expanded=True):
+                                st.markdown(qa_report)
+                            st.warning("⚠️ Proceeding with delivery, but please review the QA report carefully.")
+                else:
+                    st.warning("⚠️ QA Validation agent not found - proceeding without quality check")
+            elif 'qa_validation' in st.session_state.phase_results:
+                qa_report = st.session_state.phase_results['qa_validation']
+                phases_completed.append("QA Validation (Cached)")
+            
+            # PHASE 5: DOCUMENTATION ENHANCEMENT (if agent available)
+            if 'documentation' not in st.session_state.phase_results:
+                doc_specialist = find_documentation_specialist(saved_agents)
+                if doc_specialist:
+                    with st.status("📝 Phase 5: Enhancing Documentation...", expanded=True) as status:
+                        st.write("Creating comprehensive README, deployment guides, and troubleshooting sections...")
+                        
+                        doc_task = f"""
+Review the generated deployment kit and enhance the documentation.
+
+## Generated Code
+{final_output[:5000]}... (focus on README and deployment sections)
+
+## Technology Stack
+{st.session_state.chosen_strategy}
+
+## Your Task
+Enhance or create:
+1. **README.md**: Complete setup guide, prerequisites, installation steps
+2. **Deployment Guide**: Platform-specific instructions with exact commands
+3. **API Documentation**: All endpoints with examples
+4. **Troubleshooting**: Common issues and solutions
+5. **Code Comments**: Ensure complex logic is explained
+
+Output enhanced documentation sections in Markdown format.
+"""
+                        
+                        expected_doc = "Enhanced documentation including improved README, deployment guide, API docs, and troubleshooting section."
+                        
+                        enhanced_docs = run_single_agent_task(doc_specialist, doc_task, expected_doc)
+                        st.session_state.phase_results['documentation'] = enhanced_docs
+                        
+                        # Optionally merge enhanced docs into final_output
+                        # For now, store separately
+                        
+                        status.update(label="✅ Phase 5: Documentation Enhancement Complete", state="complete")
+                        phases_completed.append("Documentation Enhancement")
+                else:
+                    st.info("ℹ️ Documentation Specialist not found - using generated docs as-is")
+            elif 'documentation' in st.session_state.phase_results:
+                phases_completed.append("Documentation Enhancement (Cached)")
+            
+            # Show completed phases summary
+            if phases_completed:
+                st.success(f"✅ Completed {len(phases_completed)} workflow phases: {', '.join(phases_completed)}")
             
             # Store results in session state
             st.session_state.execution_result = final_output
