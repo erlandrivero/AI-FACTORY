@@ -2088,17 +2088,26 @@ def build_crewai_agent(profile: Dict[str, Any]) -> Agent:
 # ------------------------------------------------------------------------------
 # Helper: Intelligent API Key Detection
 # ------------------------------------------------------------------------------
-def detect_api_keys_for_stack(package_name: str, full_strategy_text: str) -> tuple:
+def detect_api_keys_for_stack(package_name: str, full_strategy_text: str, additional_features: str = "", special_requirements: str = "") -> tuple:
     """
     Intelligently detect required and optional API keys based on the selected package.
     Analyzes the package content to extract tech stack details.
+    
+    Args:
+        package_name: The selected package name (e.g., "Package A")
+        full_strategy_text: The content of the selected package
+        additional_features: User's additional feature requests
+        special_requirements: User's special requirements
+    
     Returns: (required_keys_dict, optional_keys_dict)
+    
+    Note: User's additional features and requirements take priority over package defaults.
     """
     required_keys = {}
     optional_keys = {}
     
-    # Combine all text for analysis
-    combined_text = f"{package_name.lower()} {full_strategy_text.lower()}"
+    # Combine all text for analysis - USER INPUT TAKES PRIORITY
+    combined_text = f"{package_name.lower()} {full_strategy_text.lower()} {additional_features.lower()} {special_requirements.lower()}"
     
     # ========== TECH STACK SPECIFIC DETECTION ==========
     
@@ -2203,8 +2212,9 @@ def detect_api_keys_for_stack(package_name: str, full_strategy_text: str) -> tup
         optional_keys["GitHub OAuth Client ID"] = "For GitHub authentication"
         optional_keys["GitHub OAuth Client Secret"] = "GitHub OAuth secret"
     
-    # ========== ALWAYS USEFUL ==========
-    optional_keys["GitHub Personal Access Token"] = "For CI/CD automation (github.com/settings/tokens)"
+    # ========== ALWAYS USEFUL (Only if CI/CD mentioned) ==========
+    if "ci/cd" in combined_text or "github actions" in combined_text or "automation" in combined_text:
+        optional_keys["GitHub Personal Access Token"] = "For CI/CD automation (github.com/settings/tokens)"
     
     return required_keys, optional_keys
 
@@ -2564,10 +2574,37 @@ def project_execution_page():
         
         st.divider()
         
-        # Use intelligent API key detection
+        # Extract only the chosen package's content from all strategy options
+        chosen_package_content = ""
+        if st.session_state.strategy_options and st.session_state.chosen_strategy:
+            full_text = st.session_state.strategy_options
+            # Try to extract the specific package section
+            package_marker = st.session_state.chosen_strategy  # e.g., "Package A", "Package B"
+            if package_marker in full_text:
+                # Find the start of this package
+                start_idx = full_text.find(package_marker)
+                # Find the next package marker or end of text
+                next_package_markers = ["## Package", "### Package", "**Package"]
+                end_idx = len(full_text)
+                for marker in next_package_markers:
+                    next_idx = full_text.find(marker, start_idx + len(package_marker))
+                    if next_idx != -1 and next_idx < end_idx:
+                        end_idx = next_idx
+                chosen_package_content = full_text[start_idx:end_idx]
+            else:
+                # Fallback: use the full text (less precise)
+                chosen_package_content = full_text
+        
+        # Use intelligent API key detection with only the selected package
+        # Include user's additional features and requirements for more accurate detection
+        additional_features = st.session_state.user_selections.get('additional_features', '')
+        special_requirements = st.session_state.user_selections.get('special_requirements', '')
+        
         required_keys, optional_keys = detect_api_keys_for_stack(
             st.session_state.chosen_strategy,
-            st.session_state.strategy_options
+            chosen_package_content,
+            additional_features,
+            special_requirements
         )
         
         st.info("💡 **Tip:** These API keys are detected based on your selected package. You can skip this step and add them later during deployment. The agents will use these to configure your application properly.")
@@ -2743,9 +2780,11 @@ def project_execution_page():
         # Format additional requirements
         additional_context = ""
         if st.session_state.user_selections.get('additional_features'):
-            additional_context += f"\n\n## ✨ Additional Features Requested\n\n{st.session_state.user_selections['additional_features']}\n"
+            additional_context += f"\n\n## ✨ Additional Features Requested (HIGH PRIORITY)\n\n{st.session_state.user_selections['additional_features']}\n\n"
+            additional_context += "⚠️ **IMPORTANT**: These additional features MODIFY the base package. If they mention different technologies (e.g., MongoDB instead of PostgreSQL), you MUST use the user's specified technology.\n"
         if st.session_state.user_selections.get('special_requirements'):
-            additional_context += f"\n\n## ⚙️ Special Requirements\n\n{st.session_state.user_selections['special_requirements']}\n"
+            additional_context += f"\n\n## ⚙️ Special Requirements (MUST IMPLEMENT)\n\n{st.session_state.user_selections['special_requirements']}\n\n"
+            additional_context += "⚠️ **IMPORTANT**: These requirements OVERRIDE package defaults. If there's a conflict between the package and user requirements, ALWAYS follow the user's requirements.\n"
         
         # Build the comprehensive task description
         orchestrator_task_desc = f"""
@@ -2757,14 +2796,28 @@ You are the Orchestrator leading a team of specialist agents to build a complete
 
 {st.session_state.project_idea}
 
-## 🏗️ CHOSEN TECHNOLOGY STRATEGY
+## 🏗️ CHOSEN TECHNOLOGY STRATEGY (BASE PACKAGE)
 
 {st.session_state.chosen_strategy}
 
-**You MUST implement the project using this exact technology stack.** Do not deviate from the chosen strategy unless technically impossible.
+**IMPORTANT**: This is the BASE package. However, if the user has specified additional features or special requirements below that mention different technologies, YOU MUST use the user's specified technologies instead.
+
+**Example**: If the package suggests PostgreSQL but the user's additional features mention "MongoDB", you MUST use MongoDB, not PostgreSQL.
 {api_keys_context}
 {additional_context}
 {file_context}
+
+## 🎯 TECHNOLOGY PRIORITY RULES
+
+When there's a conflict between the base package and user input:
+1. **User's Additional Features** = HIGHEST PRIORITY (overrides package)
+2. **User's Special Requirements** = HIGHEST PRIORITY (overrides package)
+3. **Base Package Strategy** = Use only if no conflicts with user input
+
+**Examples of User Overrides**:
+- Package says "PostgreSQL" + User says "use MongoDB" → USE MONGODB ✅
+- Package says "Railway" + User says "deploy to Vercel" → USE VERCEL ✅
+- Package says "REST API" + User says "use GraphQL" → USE GRAPHQL ✅
 
 ## 🎯 YOUR MISSION
 
