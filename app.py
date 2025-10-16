@@ -64,260 +64,650 @@ if not USE_MONGODB:
     )
 
 # ------------------------------------------------------------------------------
-# Dark Mode CSS Injection (palette, fonts, components)
+# Professional UI/UX Design System with Enhanced Spacing
 # ------------------------------------------------------------------------------
 DARK_CSS = """
 <style>
-/* Google Font */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+/* Import Professional Typography */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
-/* Color System */
+/* Design System - Professional Color Palette */
 :root {
-  --bg: #1E1E1E;
-  --surface: #2D2D2D;
-  --surface-2: #242424;
-  --border: #3A3A3A;
-  --accent: #7C5CFF;      /* Vibrant purple accent */
-  --accent-hover: #6B4CFA;
-  --text: #EAEAEA;        /* Primary text */
-  --text-muted: #BDBDBD;  /* Secondary text */
-  --success: #22c55e;
-  --error: #ef4444;
-  --warning: #f59e0b;
+  /* Background System */
+  --bg-primary: #0F1117;           /* Main app background - deeper, richer */
+  --bg-secondary: #1A1D29;         /* Content areas background */
+  --bg-tertiary: #252936;          /* Elevated surfaces (cards, panels) */
+  --bg-elevated: #2D3142;          /* Highest elevation (modals, popovers) */
+  
+  /* Border & Divider System */
+  --border-subtle: #2D3142;        /* Subtle borders */
+  --border-default: #3D4357;       /* Default borders */
+  --border-emphasis: #4D5367;      /* Emphasized borders */
+  
+  /* Accent & Brand Colors */
+  --accent-primary: #7C5CFF;       /* Primary brand purple */
+  --accent-primary-hover: #6B4CFA; /* Hover state */
+  --accent-primary-active: #5A3BE9; /* Active/pressed state */
+  --accent-gradient: linear-gradient(135deg, #7C5CFF 0%, #9D7FFF 100%);
+  
+  /* Text System */
+  --text-primary: #F5F5F7;         /* Primary text - high contrast */
+  --text-secondary: #C7C7CC;       /* Secondary text */
+  --text-tertiary: #8E8E93;        /* Tertiary text - labels, captions */
+  --text-disabled: #636366;        /* Disabled state */
+  
+  /* Semantic Colors */
+  --success: #34D399;              /* Success green */
+  --success-bg: rgba(52, 211, 153, 0.1);
+  --error: #F87171;                /* Error red */
+  --error-bg: rgba(248, 113, 113, 0.1);
+  --warning: #FBBF24;              /* Warning amber */
+  --warning-bg: rgba(251, 191, 36, 0.1);
+  --info: #60A5FA;                 /* Info blue */
+  --info-bg: rgba(96, 165, 250, 0.1);
+  
+  /* Spacing System - Professional Breathing Room */
+  --spacing-xs: 0.25rem;    /* 4px */
+  --spacing-sm: 0.5rem;     /* 8px */
+  --spacing-md: 1rem;       /* 16px */
+  --spacing-lg: 1.5rem;     /* 24px */
+  --spacing-xl: 2rem;       /* 32px */
+  --spacing-2xl: 3rem;      /* 48px */
+  --spacing-3xl: 4rem;      /* 64px */
+  
+  /* Border Radius System */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-full: 9999px;
+  
+  /* Shadow System */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.6);
+  
+  /* Typography Scale */
+  --font-size-xs: 0.75rem;   /* 12px */
+  --font-size-sm: 0.875rem;  /* 14px */
+  --font-size-base: 1rem;    /* 16px */
+  --font-size-lg: 1.125rem;  /* 18px */
+  --font-size-xl: 1.25rem;   /* 20px */
+  --font-size-2xl: 1.5rem;   /* 24px */
+  --font-size-3xl: 1.875rem; /* 30px */
+  
+  /* Line Heights */
+  --leading-tight: 1.25;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.75;
+  
+  /* Transitions */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Base App */
+/* ============================================================================
+   BASE APPLICATION STYLES - Enhanced Typography & Spacing
+   ============================================================================ */
+
+/* Main App Container */
 html, body, [data-testid="stAppViewContainer"], .stApp {
-  background-color: var(--bg) !important;
-  color: var(--text) !important;
-  font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji" !important;
+  background-color: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif !important;
+  font-size: var(--font-size-base) !important;
+  line-height: var(--leading-normal) !important;
+  font-weight: 400 !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+}
+
+/* Main Content Area - Add Generous Padding */
+.block-container {
+  padding-top: var(--spacing-2xl) !important;
+  padding-bottom: var(--spacing-2xl) !important;
+  padding-left: var(--spacing-xl) !important;
+  padding-right: var(--spacing-xl) !important;
+  max-width: 1400px !important;
+}
+
+/* Column Gap Enhancement - More Breathing Room */
+[data-testid="column"] {
+  padding-left: var(--spacing-md) !important;
+  padding-right: var(--spacing-md) !important;
+}
+
+/* First column - remove left padding */
+[data-testid="column"]:first-child {
+  padding-left: 0 !important;
+}
+
+/* Last column - remove right padding */
+[data-testid="column"]:last-child {
+  padding-right: 0 !important;
+}
+
+/* Increase gap between columns */
+.row-widget.stHorizontalBlock {
+  gap: var(--spacing-xl) !important;
 }
 
 /* Header */
 [data-testid="stHeader"] {
-  background: linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0)) !important;
-  color: var(--text) !important;
-  border-bottom: 1px solid var(--border) !important;
+  background: linear-gradient(180deg, rgba(15, 17, 23, 0.95), rgba(15, 17, 23, 0)) !important;
+  color: var(--text-primary) !important;
+  border-bottom: 1px solid var(--border-subtle) !important;
+  backdrop-filter: blur(10px) !important;
 }
 
-/* Sidebar */
+/* Sidebar - Enhanced with Better Contrast */
 [data-testid="stSidebar"] {
-  background-color: var(--surface) !important;
-  color: var(--text) !important;
-  border-right: 1px solid var(--border) !important;
-}
-[data-testid="stSidebar"] * {
-  color: var(--text) !important;
+  background-color: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  border-right: 1px solid var(--border-default) !important;
+  padding-top: var(--spacing-xl) !important;
 }
 
-/* Cards, containers, expanders */
+[data-testid="stSidebar"] * {
+  color: var(--text-primary) !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {
+  font-size: var(--font-size-sm) !important;
+  line-height: var(--leading-relaxed) !important;
+}
+
+/* ============================================================================
+   CARDS, CONTAINERS & EXPANDERS - Enhanced Visual Hierarchy
+   ============================================================================ */
+
+/* Base Container Text */
 .block-container, .stTabs, .stDataFrame, .stMarkdown, .stMetric {
-  color: var(--text) !important;
+  color: var(--text-primary) !important;
 }
+
+/* Expander - Professional Card Style */
 div[data-testid="stExpander"] {
-  background: var(--surface) !important;
-  border: 1px solid var(--border) !important;
-  border-radius: 14px !important;
+  background: var(--bg-tertiary) !important;
+  border: 1px solid var(--border-default) !important;
+  border-radius: var(--radius-lg) !important;
+  margin-bottom: var(--spacing-md) !important;
+  box-shadow: var(--shadow-sm) !important;
+  transition: all var(--transition-base) !important;
 }
+
+div[data-testid="stExpander"]:hover {
+  border-color: var(--border-emphasis) !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+/* Expander Header */
 div[data-testid="stExpander"] > details > summary {
-  background: var(--surface-2) !important;
-  border-bottom: 1px solid var(--border) !important;
-  padding: 12px 14px !important;
+  background: var(--bg-elevated) !important;
+  border-bottom: 1px solid var(--border-subtle) !important;
+  padding: var(--spacing-lg) var(--spacing-xl) !important;
   font-weight: 600 !important;
-  color: var(--text) !important;
+  font-size: var(--font-size-base) !important;
+  color: var(--text-primary) !important;
+  cursor: pointer !important;
+  transition: background-color var(--transition-fast) !important;
 }
+
+div[data-testid="stExpander"] > details > summary:hover {
+  background: var(--bg-tertiary) !important;
+}
+
+/* Expander Content */
+div[data-testid="stExpander"] > details > div {
+  padding: var(--spacing-xl) !important;
+}
+
 div[data-testid="stExpander"] p,
 div[data-testid="stExpander"] .stMarkdown {
-  color: var(--text) !important;
+  color: var(--text-secondary) !important;
+  line-height: var(--leading-relaxed) !important;
 }
 
-/* Inputs */
-textarea, input[type="text"], input[type="search"], input[type="email"], input[type="password"] {
-  background: var(--surface) !important;
-  color: var(--text) !important;
-  border: 1px solid var(--border) !important;
-  border-radius: 12px !important;
+/* ============================================================================
+   INPUT FIELDS - Enhanced Spacing & Focus States
+   ============================================================================ */
+
+/* Text Inputs */
+textarea, 
+input[type="text"], 
+input[type="search"], 
+input[type="email"], 
+input[type="password"] {
+  background: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+  border: 1.5px solid var(--border-default) !important;
+  border-radius: var(--radius-md) !important;
+  padding: var(--spacing-md) var(--spacing-lg) !important;
+  font-size: var(--font-size-base) !important;
+  line-height: var(--leading-normal) !important;
+  transition: all var(--transition-base) !important;
 }
+
+textarea:hover, 
+input[type="text"]:hover, 
+input[type="search"]:hover, 
+input[type="email"]:hover, 
+input[type="password"]:hover {
+  border-color: var(--border-emphasis) !important;
+  background: var(--bg-elevated) !important;
+}
+
+textarea:focus, 
+input[type="text"]:focus, 
+input[type="search"]:focus, 
+input[type="email"]:focus, 
+input[type="password"]:focus {
+  border-color: var(--accent-primary) !important;
+  background: var(--bg-elevated) !important;
+  box-shadow: 0 0 0 3px rgba(124, 92, 255, 0.1) !important;
+  outline: none !important;
+}
+
 textarea::placeholder, input::placeholder {
-  color: var(--text-muted) !important;
+  color: var(--text-tertiary) !important;
+  opacity: 1 !important;
 }
 
-/* Selects and combos */
+/* Text Areas - Extra Padding */
+textarea {
+  min-height: 120px !important;
+  line-height: var(--leading-relaxed) !important;
+}
+
+/* ============================================================================
+   SELECT & DROPDOWN MENUS
+   ============================================================================ */
+
 div[data-baseweb="select"] > div {
-  background: var(--surface) !important;
-  border-color: var(--border) !important;
-  color: var(--text) !important;
-  border-radius: 12px !important;
+  background: var(--bg-tertiary) !important;
+  border: 1.5px solid var(--border-default) !important;
+  border-radius: var(--radius-md) !important;
+  color: var(--text-primary) !important;
+  padding: var(--spacing-sm) var(--spacing-md) !important;
+  transition: all var(--transition-base) !important;
 }
+
+div[data-baseweb="select"] > div:hover {
+  border-color: var(--border-emphasis) !important;
+  background: var(--bg-elevated) !important;
+}
+
 div[data-baseweb="select"] svg {
-  fill: var(--text-muted) !important;
+  fill: var(--text-secondary) !important;
 }
-/* Dropdown menu options */
+
+/* Dropdown Options */
 [data-baseweb="menu"],
 [data-baseweb="popover"] {
-  background: var(--surface) !important;
+  background: var(--bg-elevated) !important;
+  border: 1px solid var(--border-default) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-lg) !important;
+  padding: var(--spacing-sm) !important;
 }
+
 [role="option"] {
-  background: var(--surface) !important;
-  color: var(--text) !important;
+  background: transparent !important;
+  color: var(--text-primary) !important;
+  padding: var(--spacing-md) var(--spacing-lg) !important;
+  border-radius: var(--radius-sm) !important;
+  margin: var(--spacing-xs) 0 !important;
+  transition: all var(--transition-fast) !important;
 }
+
 [role="option"]:hover {
-  background: var(--surface-2) !important;
+  background: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
 }
 
-/* Buttons */
-.stButton > button, button[kind="secondary"] {
-  background: var(--accent) !important;
-  color: #ffffff !important;
-  border: 1px solid transparent !important;
-  padding: 0.6rem 1rem !important;
-  border-radius: 12px !important;
-  font-weight: 600 !important;
-  transition: all .15s ease-in-out;
-}
-.stButton > button:hover, button[kind="secondary"]:hover {
-  background: var(--accent-hover) !important;
-  transform: translateY(-1px);
-}
-.stButton > button:focus {
-  outline: 2px solid var(--accent-hover) !important;
-}
+/* ============================================================================
+   BUTTONS - Professional Design with Elevation
+   ============================================================================ */
 
-/* Primary and secondary base buttons (newer Streamlit) */
+/* Primary Buttons */
+.stButton > button, 
+button[kind="secondary"],
 button[data-testid="baseButton-primary"],
-button[kind="primary"],
-.stForm button[type="submit"] {
-  background: var(--accent) !important;
-  color: #ffffff !important;
-  border: 1px solid transparent !important;
-  border-radius: 12px !important;
+button[kind="primary"] {
+  background: var(--accent-gradient) !important;
+  color: #FFFFFF !important;
+  border: none !important;
+  padding: var(--spacing-md) var(--spacing-xl) !important;
+  border-radius: var(--radius-md) !important;
   font-weight: 600 !important;
+  font-size: var(--font-size-base) !important;
+  letter-spacing: 0.01em !important;
+  box-shadow: var(--shadow-sm) !important;
+  transition: all var(--transition-base) !important;
+  cursor: pointer !important;
 }
-button[data-testid="baseButton-secondary"] {
-  background: var(--surface-2) !important;
-  color: var(--text) !important;
-  border: 1px solid var(--border) !important;
-  border-radius: 12px !important;
-}
+
+.stButton > button:hover, 
+button[kind="secondary"]:hover,
 button[data-testid="baseButton-primary"]:hover,
-button[kind="primary"]:hover,
-.stForm button[type="submit"]:hover {
-  background: var(--accent-hover) !important;
+button[kind="primary"]:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: var(--shadow-md) !important;
+  background: linear-gradient(135deg, var(--accent-primary-hover) 0%, #8D6FFF 100%) !important;
 }
 
-/* Form help icons and text */
-.stCheckbox label span,
-[data-testid="stCaptionContainer"],
-.stCheckbox [data-testid="stMarkdownContainer"] {
-  color: var(--text) !important;
+.stButton > button:active,
+button[kind="secondary"]:active,
+button[data-testid="baseButton-primary"]:active,
+button[kind="primary"]:active {
+  transform: translateY(0) !important;
+  box-shadow: var(--shadow-sm) !important;
 }
 
-/* Help icons - make them visible */
-svg.info-icon,
-.stCheckbox svg,
-.stSelectbox svg[data-testid="stTooltipHoverTarget"],
-.stTextInput svg[data-testid="stTooltipHoverTarget"],
-.stTextArea svg[data-testid="stTooltipHoverTarget"],
-[data-testid="stTooltipHoverTarget"] svg,
-.st-emotion-cache-1gulkj5 svg {
-  fill: var(--text) !important;
-  color: var(--text) !important;
-  opacity: 0.7 !important;
+.stButton > button:focus,
+button[kind="secondary"]:focus,
+button[data-testid="baseButton-primary"]:focus,
+button[kind="primary"]:focus {
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(124, 92, 255, 0.3) !important;
 }
 
-/* Help icon container */
-[data-testid="stTooltipHoverTarget"] {
-  color: var(--text) !important;
-  opacity: 0.7 !important;
+/* Secondary Buttons */
+button[data-testid="baseButton-secondary"] {
+  background: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+  border: 1.5px solid var(--border-default) !important;
+  border-radius: var(--radius-md) !important;
+  padding: var(--spacing-md) var(--spacing-xl) !important;
+  font-weight: 600 !important;
+  font-size: var(--font-size-base) !important;
+  transition: all var(--transition-base) !important;
 }
 
-/* Ensure help icons are visible in all contexts */
-.stSelectbox [data-testid="stTooltipHoverTarget"],
-.stTextInput [data-testid="stTooltipHoverTarget"],
-.stCheckbox [data-testid="stTooltipHoverTarget"] {
-  display: inline-flex !important;
-  visibility: visible !important;
+button[data-testid="baseButton-secondary"]:hover {
+  background: var(--bg-elevated) !important;
+  border-color: var(--border-emphasis) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: var(--shadow-sm) !important;
 }
 
-/* Alerts and info boxes */
-div[data-testid="stAlert"],
-div[data-testid="stNotification"],
-.stAlert {
-  background: var(--surface) !important;
-  border: 1px solid var(--border) !important;
-  border-radius: 12px !important;
-  color: var(--text) !important;
+/* Disabled Button State */
+.stButton > button:disabled,
+button:disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  box-shadow: none !important;
 }
+
+/* ============================================================================
+   ALERTS & NOTIFICATIONS - Enhanced Visual Communication
+   ============================================================================ */
+
+/* Info Messages */
+.stInfo, 
+[data-testid="stInfo"],
+div[data-testid="stAlert"] {
+  background: var(--info-bg) !important;
+  border-left: 4px solid var(--info) !important;
+  border-radius: var(--radius-md) !important;
+  padding: var(--spacing-lg) var(--spacing-xl) !important;
+  color: var(--text-primary) !important;
+  margin: var(--spacing-md) 0 !important;
+}
+
+/* Success Messages */
+.stSuccess, 
+[data-testid="stSuccess"] {
+  background: var(--success-bg) !important;
+  border-left: 4px solid var(--success) !important;
+  border-radius: var(--radius-md) !important;
+  padding: var(--spacing-lg) var(--spacing-xl) !important;
+  color: var(--text-primary) !important;
+  margin: var(--spacing-md) 0 !important;
+}
+
+/* Warning Messages */
+.stWarning, 
+[data-testid="stWarning"] {
+  background: var(--warning-bg) !important;
+  border-left: 4px solid var(--warning) !important;
+  border-radius: var(--radius-md) !important;
+  padding: var(--spacing-lg) var(--spacing-xl) !important;
+  color: var(--text-primary) !important;
+  margin: var(--spacing-md) 0 !important;
+}
+
+/* Error Messages */
+.stError, 
+[data-testid="stError"] {
+  background: var(--error-bg) !important;
+  border-left: 4px solid var(--error) !important;
+  border-radius: var(--radius-md) !important;
+  padding: var(--spacing-lg) var(--spacing-xl) !important;
+  color: var(--text-primary) !important;
+  margin: var(--spacing-md) 0 !important;
+}
+
+/* Alert Content */
 div[data-testid="stAlert"] *,
 div[data-testid="stNotification"] *,
 .stAlert *,
 div[data-testid="stAlert"] p,
 div[data-testid="stAlert"] strong {
-  color: var(--text) !important;
+  color: var(--text-primary) !important;
   background: transparent !important;
 }
 
-/* Code blocks & markdown text */
-code, pre {
-  background: var(--surface-2) !important;
-  color: var(--text) !important;
-  border-radius: 10px !important;
+/* ============================================================================
+   TYPOGRAPHY & TEXT ELEMENTS
+   ============================================================================ */
+
+/* Headings - Enhanced Hierarchy */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text-primary) !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
+  line-height: var(--leading-tight) !important;
+  margin-bottom: var(--spacing-md) !important;
 }
 
-/* Spinners */
+h1 { font-size: var(--font-size-3xl) !important; }
+h2 { font-size: var(--font-size-2xl) !important; }
+h3 { font-size: var(--font-size-xl) !important; }
+
+/* Paragraphs & Labels */
+label, p, li, span {
+  color: var(--text-secondary) !important;
+  line-height: var(--leading-relaxed) !important;
+}
+
+/* Strong Text */
+strong, b {
+  color: var(--text-primary) !important;
+  font-weight: 600 !important;
+}
+
+/* Captions */
+[data-testid="stCaptionContainer"],
+.stTextInput small,
+.stTextArea small {
+  color: var(--text-tertiary) !important;
+  font-size: var(--font-size-sm) !important;
+  line-height: var(--leading-normal) !important;
+}
+
+/* Form Labels */
+.stCheckbox label span,
+.stCheckbox [data-testid="stMarkdownContainer"] {
+  color: var(--text-primary) !important;
+  font-weight: 500 !important;
+}
+
+/* ============================================================================
+   HELP ICONS & TOOLTIPS
+   ============================================================================ */
+
+/* Help Icons */
+svg.info-icon,
+.stCheckbox svg,
+.stSelectbox svg[data-testid="stTooltipHoverTarget"],
+.stTextInput svg[data-testid="stTooltipHoverTarget"],
+.stTextArea svg[data-testid="stTooltipHoverTarget"],
+[data-testid="stTooltipHoverTarget"] svg {
+  fill: var(--text-secondary) !important;
+  color: var(--text-secondary) !important;
+  opacity: 0.8 !important;
+  transition: opacity var(--transition-fast) !important;
+}
+
+[data-testid="stTooltipHoverTarget"]:hover svg {
+  opacity: 1 !important;
+}
+
+/* Tooltip Container */
+[data-testid="stTooltipHoverTarget"] {
+  color: var(--text-secondary) !important;
+  display: inline-flex !important;
+  visibility: visible !important;
+}
+
+/* Tooltips */
+[data-baseweb="tooltip"],
+[role="tooltip"] {
+  background-color: var(--bg-elevated) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-default) !important;
+  border-radius: var(--radius-md) !important;
+  padding: var(--spacing-sm) var(--spacing-md) !important;
+  box-shadow: var(--shadow-lg) !important;
+  font-size: var(--font-size-sm) !important;
+}
+
+/* ============================================================================
+   CODE BLOCKS & MARKDOWN
+   ============================================================================ */
+
+/* Inline Code */
+code {
+  background: var(--bg-tertiary) !important;
+  color: var(--accent-primary) !important;
+  padding: var(--spacing-xs) var(--spacing-sm) !important;
+  border-radius: var(--radius-sm) !important;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Courier New', monospace !important;
+  font-size: 0.9em !important;
+}
+
+/* Code Blocks */
+pre {
+  background: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-default) !important;
+  border-radius: var(--radius-md) !important;
+  padding: var(--spacing-lg) !important;
+  overflow-x: auto !important;
+  line-height: var(--leading-relaxed) !important;
+}
+
+pre code {
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+/* ============================================================================
+   LOADING STATES & PROGRESS
+   ============================================================================ */
+
+/* Spinner */
 div[data-testid="stSpinner"] {
-  background: var(--surface-2) !important;
-  color: var(--text) !important;
-  border-radius: 12px !important;
-  padding: 0.75rem 1rem !important;
-  border: 1px solid var(--border) !important;
+  background: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+  border-radius: var(--radius-md) !important;
+  padding: var(--spacing-lg) var(--spacing-xl) !important;
+  border: 1px solid var(--border-default) !important;
+  box-shadow: var(--shadow-sm) !important;
 }
 
-/* Dividers, hr, borders */
+/* Progress Bars */
+.stProgress > div > div > div {
+  background-color: var(--accent-gradient) !important;
+  border-radius: var(--radius-full) !important;
+}
+
+[data-testid="stProgressBar"] {
+  background-color: var(--bg-tertiary) !important;
+  border-radius: var(--radius-full) !important;
+  height: 8px !important;
+}
+
+/* ============================================================================
+   DIVIDERS & SEPARATORS
+   ============================================================================ */
+
 hr, .stDivider {
-  border-color: var(--border) !important;
+  border-color: var(--border-default) !important;
+  opacity: 0.5 !important;
+  margin: var(--spacing-xl) 0 !important;
 }
 
-/* Headings & text */
-h1, h2, h3, h4, h5, h6, label, p, li, span {
-  color: var(--text) !important;
-}
+/* ============================================================================
+   SCROLLBARS - Custom Styled
+   ============================================================================ */
 
-/* Scrollbars (WebKit) */
 *::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-*::-webkit-scrollbar-track {
-  background: var(--bg);
-}
-*::-webkit-scrollbar-thumb {
-  background-color: var(--surface-2);
-  border-radius: 10px;
-  border: 2px solid var(--bg);
+  width: 12px;
+  height: 12px;
 }
 
-/* Text area sizing for nicer look */
+*::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+  border-radius: var(--radius-sm);
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--bg-tertiary);
+  border-radius: var(--radius-sm);
+  border: 2px solid var(--bg-primary);
+  transition: background-color var(--transition-base);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--bg-elevated);
+}
+
+/* ============================================================================
+   TEXTAREA INTERACTIONS & USABILITY
+   ============================================================================ */
+
+/* Text Area - Enhanced Interaction */
 textarea {
-  line-height: 1.45 !important;
+  line-height: var(--leading-relaxed) !important;
   pointer-events: auto !important;
   cursor: text !important;
   user-select: text !important;
+  resize: vertical !important;
 }
+
 .stTextArea textarea {
   pointer-events: auto !important;
   cursor: text !important;
   user-select: text !important;
 }
+
 /* Ensure text area container doesn't block clicks */
-.stTextArea, [data-testid="stTextArea"] {
-  pointer-events: auto !important;
-}
-.stTextArea > div, [data-testid="stTextArea"] > div {
+.stTextArea, 
+[data-testid="stTextArea"] {
   pointer-events: auto !important;
 }
 
-/* Hide the "Press Ctrl+Enter to apply" hint in text areas */
+.stTextArea > div, 
+[data-testid="stTextArea"] > div {
+  pointer-events: auto !important;
+}
+
+/* Hide Streamlit's default input instructions */
 [data-testid="InputInstructions"],
 .stTextArea [data-testid="stMarkdownContainer"] small,
 .stTextArea small {
@@ -584,6 +974,322 @@ div, span, p, label, li {
 [style*="color: #fff"],
 [style*="color: white"] {
   color: var(--text) !important;
+}
+
+/* ============================================================================
+   AGENT MANAGEMENT - Custom Card Styling
+   ============================================================================ */
+
+/* Agent Card Container */
+.agent-card {
+  background: var(--bg-tertiary) !important;
+  border: 1.5px solid var(--border-default) !important;
+  border-radius: var(--radius-lg) !important;
+  padding: var(--spacing-xl) !important;
+  margin-bottom: var(--spacing-lg) !important;
+  box-shadow: var(--shadow-sm) !important;
+  transition: all var(--transition-base) !important;
+  position: relative !important;
+}
+
+.agent-card:hover {
+  border-color: var(--border-emphasis) !important;
+  box-shadow: var(--shadow-md) !important;
+  transform: translateY(-2px) !important;
+}
+
+/* Agent Card Header */
+.agent-card-header {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: flex-start !important;
+  margin-bottom: var(--spacing-md) !important;
+}
+
+/* Agent Role Title */
+.agent-role {
+  font-size: var(--font-size-xl) !important;
+  font-weight: 700 !important;
+  color: var(--text-primary) !important;
+  margin-bottom: var(--spacing-sm) !important;
+  letter-spacing: -0.01em !important;
+}
+
+/* Agent Goal Text */
+.agent-goal {
+  font-size: var(--font-size-base) !important;
+  color: var(--text-secondary) !important;
+  line-height: var(--leading-relaxed) !important;
+  margin-bottom: var(--spacing-md) !important;
+}
+
+/* Agent Backstory */
+.agent-backstory {
+  font-size: var(--font-size-sm) !important;
+  color: var(--text-tertiary) !important;
+  line-height: var(--leading-relaxed) !important;
+  font-style: italic !important;
+  padding: var(--spacing-md) !important;
+  background: var(--bg-secondary) !important;
+  border-left: 3px solid var(--accent-primary) !important;
+  border-radius: var(--radius-sm) !important;
+  margin-top: var(--spacing-md) !important;
+}
+
+/* Agent Badge (delegation status) */
+.agent-badge {
+  display: inline-block !important;
+  padding: var(--spacing-xs) var(--spacing-md) !important;
+  background: var(--accent-primary) !important;
+  color: #FFFFFF !important;
+  font-size: var(--font-size-xs) !important;
+  font-weight: 600 !important;
+  border-radius: var(--radius-full) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+}
+
+.agent-badge.no-delegation {
+  background: var(--bg-elevated) !important;
+  color: var(--text-tertiary) !important;
+}
+
+/* Empty State */
+.empty-agents-state {
+  text-align: center !important;
+  padding: var(--spacing-3xl) var(--spacing-xl) !important;
+  background: var(--bg-secondary) !important;
+  border: 2px dashed var(--border-default) !important;
+  border-radius: var(--radius-lg) !important;
+  color: var(--text-tertiary) !important;
+}
+
+.empty-agents-state-icon {
+  font-size: 48px !important;
+  margin-bottom: var(--spacing-lg) !important;
+  opacity: 0.5 !important;
+}
+
+.empty-agents-state-text {
+  font-size: var(--font-size-lg) !important;
+  color: var(--text-secondary) !important;
+  margin-bottom: var(--spacing-sm) !important;
+}
+
+.empty-agents-state-hint {
+  font-size: var(--font-size-sm) !important;
+  color: var(--text-tertiary) !important;
+}
+
+/* ============================================================================
+   PROJECT EXECUTION - Enhanced Styling
+   ============================================================================ */
+
+/* Styled Section Titles */
+.section-title {
+  font-size: var(--font-size-2xl) !important;
+  font-weight: 700 !important;
+  color: var(--text-primary) !important;
+  margin-bottom: var(--spacing-lg) !important;
+  padding-bottom: var(--spacing-md) !important;
+  border-bottom: 2px solid var(--border-emphasis) !important;
+  letter-spacing: -0.02em !important;
+  background: var(--accent-gradient) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+}
+
+.section-subtitle {
+  font-size: var(--font-size-lg) !important;
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+  margin-bottom: var(--spacing-md) !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: var(--spacing-sm) !important;
+}
+
+/* Enhanced Project Idea Text Area */
+.project-idea-container {
+  margin: var(--spacing-lg) 0 !important;
+}
+
+.project-idea-container textarea {
+  background: var(--bg-elevated) !important;
+  border: 2px solid var(--border-default) !important;
+  border-radius: var(--radius-lg) !important;
+  padding: var(--spacing-xl) !important;
+  font-size: var(--font-size-base) !important;
+  line-height: var(--leading-relaxed) !important;
+  transition: all var(--transition-base) !important;
+  min-height: 180px !important;
+}
+
+.project-idea-container textarea:hover {
+  border-color: var(--border-emphasis) !important;
+  background: var(--bg-tertiary) !important;
+}
+
+.project-idea-container textarea:focus {
+  border-color: var(--accent-primary) !important;
+  background: var(--bg-tertiary) !important;
+  box-shadow: 0 0 0 4px rgba(124, 92, 255, 0.15) !important;
+  outline: none !important;
+}
+
+/* Prominent Launch/Action Buttons */
+.launch-button button,
+.primary-action-button button {
+  background: var(--accent-gradient) !important;
+  color: #FFFFFF !important;
+  border: none !important;
+  padding: var(--spacing-lg) var(--spacing-2xl) !important;
+  border-radius: var(--radius-lg) !important;
+  font-size: var(--font-size-lg) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.02em !important;
+  text-transform: uppercase !important;
+  box-shadow: 0 4px 12px rgba(124, 92, 255, 0.3) !important;
+  transition: all var(--transition-base) !important;
+  cursor: pointer !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.launch-button button:hover,
+.primary-action-button button:hover {
+  transform: translateY(-3px) !important;
+  box-shadow: 0 8px 20px rgba(124, 92, 255, 0.4) !important;
+  background: linear-gradient(135deg, var(--accent-primary-hover) 0%, #9D7FFF 100%) !important;
+}
+
+.launch-button button:active,
+.primary-action-button button:active {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(124, 92, 255, 0.3) !important;
+}
+
+.launch-button button:disabled,
+.primary-action-button button:disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Final Report Container */
+.report-container {
+  background: var(--bg-tertiary) !important;
+  border: 2px solid var(--border-emphasis) !important;
+  border-radius: var(--radius-xl) !important;
+  padding: var(--spacing-2xl) !important;
+  margin: var(--spacing-xl) 0 !important;
+  box-shadow: var(--shadow-lg) !important;
+  position: relative !important;
+}
+
+.report-container::before {
+  content: '' !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  height: 4px !important;
+  background: var(--accent-gradient) !important;
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0 !important;
+}
+
+.report-header {
+  font-size: var(--font-size-2xl) !important;
+  font-weight: 700 !important;
+  color: var(--text-primary) !important;
+  margin-bottom: var(--spacing-xl) !important;
+  padding-bottom: var(--spacing-md) !important;
+  border-bottom: 1px solid var(--border-default) !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: var(--spacing-md) !important;
+}
+
+.report-content {
+  color: var(--text-secondary) !important;
+  line-height: var(--leading-relaxed) !important;
+  font-size: var(--font-size-base) !important;
+}
+
+.report-content h1,
+.report-content h2,
+.report-content h3 {
+  color: var(--text-primary) !important;
+  margin-top: var(--spacing-xl) !important;
+  margin-bottom: var(--spacing-md) !important;
+}
+
+.report-content code {
+  background: var(--bg-secondary) !important;
+  color: var(--accent-primary) !important;
+  padding: var(--spacing-xs) var(--spacing-sm) !important;
+  border-radius: var(--radius-sm) !important;
+  font-size: 0.9em !important;
+}
+
+.report-content pre {
+  background: var(--bg-secondary) !important;
+  border: 1px solid var(--border-default) !important;
+  border-radius: var(--radius-md) !important;
+  padding: var(--spacing-lg) !important;
+  overflow-x: auto !important;
+  margin: var(--spacing-md) 0 !important;
+}
+
+/* Info Cards/Panels */
+.info-panel {
+  background: var(--bg-elevated) !important;
+  border: 1px solid var(--border-default) !important;
+  border-radius: var(--radius-lg) !important;
+  padding: var(--spacing-lg) !important;
+  margin: var(--spacing-md) 0 !important;
+}
+
+.info-panel-title {
+  font-size: var(--font-size-base) !important;
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+  margin-bottom: var(--spacing-sm) !important;
+}
+
+.info-panel-content {
+  font-size: var(--font-size-sm) !important;
+  color: var(--text-secondary) !important;
+  line-height: var(--leading-relaxed) !important;
+}
+
+/* Phase Progress Pills */
+.phase-pill {
+  display: inline-block !important;
+  padding: var(--spacing-sm) var(--spacing-lg) !important;
+  background: var(--bg-elevated) !important;
+  border: 1px solid var(--border-default) !important;
+  border-radius: var(--radius-full) !important;
+  font-size: var(--font-size-sm) !important;
+  font-weight: 500 !important;
+  color: var(--text-secondary) !important;
+  margin: 0 var(--spacing-xs) !important;
+}
+
+.phase-pill.active {
+  background: var(--accent-gradient) !important;
+  border-color: var(--accent-primary) !important;
+  color: #FFFFFF !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 8px rgba(124, 92, 255, 0.3) !important;
+}
+
+.phase-pill.completed {
+  background: var(--success-bg) !important;
+  border-color: var(--success) !important;
+  color: var(--success) !important;
 }
 </style>
 """
@@ -1180,51 +1886,115 @@ with st.sidebar.expander("ℹ️ Help", expanded=False):
 def agent_management_page():
     st.header("🧠 Agent Management")
     st.write(
-        "Create, view, and delete agents. Add **one Orchestrator Agent** to lead projects."
+        "Create, view, and manage your AI agents. Build a team with specialized roles and skills."
     )
+    
+    st.divider()
 
-    st.subheader("➕ Create a New Agent")
-    with st.form("create_agent_form", clear_on_submit=True):
-        col1, col2 = st.columns(2)
-        with col1:
-            role = st.text_input("Role*", placeholder="e.g., Orchestrator Agent")
+    # Collapsible form for creating new agents
+    with st.expander("➕ Create a New Agent", expanded=False):
+        st.caption("Define a new agent with a specific role, goal, and personality.")
+        
+        with st.form("create_agent_form", clear_on_submit=True):
+            col1, col2 = st.columns(2)
+            with col1:
+                role = st.text_input(
+                    "Role*", 
+                    placeholder="e.g., Orchestrator Agent, Strategy Consultant",
+                    help="The agent's job title or primary function"
+                )
+            with col2:
+                goal = st.text_input(
+                    "Goal*", 
+                    placeholder="e.g., Coordinate and deliver projects end-to-end",
+                    help="What this agent aims to accomplish"
+                )
+
+            backstory = st.text_area(
+                "Backstory*",
+                placeholder="You are an expert in... Your specialty is... You have experience with...",
+                help="The agent's background, expertise, and personality traits",
+                height=120
+            )
+            
             allow_delegation = st.checkbox(
                 "Allow Delegation",
                 value=False,
-                help="✨ If enabled, the agent can delegate work to others. Recommended for Orchestrator agents."
+                help="✨ Enable this for manager agents (like Orchestrator) who can delegate tasks to other agents"
             )
-        with col2:
-            goal = st.text_input("Goal*", placeholder="e.g., Coordinate and deliver projects end-to-end")
 
-        backstory = st.text_area(
-            "Backstory*",
-            placeholder="Brief background/personality to guide how this agent behaves."
-        )
+            col_submit1, col_submit2, col_submit3 = st.columns([1, 1, 1])
+            with col_submit2:
+                submitted = st.form_submit_button("💾 Save Agent", use_container_width=True, type="primary")
+            
+            if submitted:
+                if not role.strip() or not goal.strip() or not backstory.strip():
+                    st.error("⚠️ Please fill in all required fields (Role, Goal, and Backstory).")
+                else:
+                    agent = add_agent(role, goal, backstory, allow_delegation)
+                    st.success(f"✅ Agent '{agent['role']}' created successfully!")
+                    st.balloons()
 
-        submitted = st.form_submit_button("💾 Save Agent", use_container_width=True, type="primary")
-        if submitted:
-            if not role.strip() or not goal.strip() or not backstory.strip():
-                st.error("Please fill in Role, Goal, and Backstory.")
-            else:
-                agent = add_agent(role, goal, backstory, allow_delegation)
-                st.success(f"Agent '{agent['role']}' saved.")
-
-    st.subheader("📒 Current Agents")
+    st.divider()
+    
+    # Display current agents as styled cards
+    st.subheader("👥 Your Agent Team")
     agents = load_agents()
+    
     if not agents:
-        st.info("No agents saved yet. Use the form above to add your first agent.")
+        # Empty state with styled message
+        st.markdown("""
+        <div class="empty-agents-state">
+            <div class="empty-agents-state-icon">🤖</div>
+            <div class="empty-agents-state-text">No agents created yet</div>
+            <div class="empty-agents-state-hint">Click "➕ Create a New Agent" above to build your first AI agent</div>
+        </div>
+        """, unsafe_allow_html=True)
         return
-
-    # Collapsible display of agents with clear bold labels
-    for a in agents:
-        with st.expander(f"🧩 {a.get('role', 'Unknown Role')}", expanded=False):
-            st.markdown(f"**Goal:** {a.get('goal','')}")
-            st.markdown(f"**Backstory:** {a.get('backstory','')}")
-            st.markdown(f"**Allow Delegation:** {'Yes' if a.get('allow_delegation') else 'No'}")
-            cols = st.columns(2)
-            with cols[0]:
-                if st.button("🗑️ Delete", key=f"del_{a['id']}"):
-                    delete_agent(a["id"])
+    
+    st.caption(f"Managing {len(agents)} agent{'s' if len(agents) != 1 else ''}")
+    
+    # Display each agent as a beautiful card
+    for idx, agent in enumerate(agents):
+        # Create card with custom HTML/CSS
+        delegation_badge = ""
+        if agent.get('allow_delegation'):
+            delegation_badge = '<span class="agent-badge">Can Delegate</span>'
+        else:
+            delegation_badge = '<span class="agent-badge no-delegation">Individual</span>'
+        
+        # Card header with role and delete button
+        col_card, col_delete = st.columns([5, 1])
+        
+        with col_card:
+            st.markdown(f"""
+            <div class="agent-card">
+                <div class="agent-card-header">
+                    <div>
+                        <div class="agent-role">🧩 {agent.get('role', 'Unknown Role')}</div>
+                        {delegation_badge}
+                    </div>
+                </div>
+                <div class="agent-goal">
+                    <strong>🎯 Goal:</strong> {agent.get('goal', 'No goal specified')}
+                </div>
+                <div class="agent-backstory">
+                    <strong>📖 Backstory:</strong><br>{agent.get('backstory', 'No backstory provided')}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col_delete:
+            st.write("")  # Spacer for alignment
+            st.write("")  # Additional spacer
+            if st.button("🗑️", key=f"del_{agent['id']}", help=f"Delete {agent.get('role')}", use_container_width=True):
+                if st.session_state.get(f"confirm_delete_{agent['id']}", False):
+                    delete_agent(agent["id"])
+                    st.success(f"🗑️ Deleted '{agent.get('role')}'")
+                    st.rerun()
+                else:
+                    st.session_state[f"confirm_delete_{agent['id']}"] = True
+                    st.warning("⚠️ Click delete again to confirm")
                     st.rerun()
 
 # ------------------------------------------------------------------------------
@@ -1307,9 +2077,14 @@ def project_execution_page():
     # PHASE 1: IDEA INPUT
     # ============================================================================
     if st.session_state.phase == 'idea_input':
-        st.subheader("💡 Step 1: Describe Your Project")
+        # Styled title with gradient
+        st.markdown('<h2 class="section-title">💡 Step 1: Describe Your Project</h2>', unsafe_allow_html=True)
         st.write("Tell us what you want to build, and our Strategy Consultant will create solution packages for you.")
         
+        st.divider()
+        
+        # Enhanced project idea text area with custom styling
+        st.markdown('<div class="project-idea-container">', unsafe_allow_html=True)
         idea = st.text_area(
             "Project Idea",
             value=st.session_state.project_idea,
@@ -1321,6 +2096,7 @@ def project_execution_page():
             help="Type or paste your project idea here, then click Plan Strategy below.",
             key="project_idea_input",
         )
+        st.markdown('</div>', unsafe_allow_html=True)
         
         # File upload section
         st.subheader("📚 Background Materials (Optional)")
@@ -1348,16 +2124,19 @@ def project_execution_page():
         
         st.divider()
         
-        # Action button
+        # Prominent action button
         col1, col2, col3 = st.columns([2, 1, 2])
         with col2:
+            st.markdown('<div class="launch-button">', unsafe_allow_html=True)
             if st.button(
                 "🎯 Plan Strategy",
                 type="primary",
                 use_container_width=True,
                 disabled=not bool(idea.strip()),
-                help="Strategy Consultant will analyze your idea and create solution packages" if idea.strip() else "Enter a project idea to enable"
+                help="Strategy Consultant will analyze your idea and create solution packages" if idea.strip() else "Enter a project idea to enable",
+                key="plan_strategy_btn"
             ):
+                st.markdown('</div>', unsafe_allow_html=True)
                 if not OPENAI_KEY:
                     st.error("OpenAI API key missing. Add it to `.streamlit/secrets.toml` and reload the app.")
                 else:
@@ -2114,7 +2893,8 @@ Before submitting, verify:
     # PHASE 5: COMPLETE
     # ============================================================================
     elif st.session_state.phase == 'complete':
-        st.subheader("✅ Step 5: Your Project is Ready!")
+        # Styled title with gradient
+        st.markdown('<h2 class="section-title">✅ Step 5: Your Project is Ready!</h2>', unsafe_allow_html=True)
         st.write("Your complete deployment kit has been generated and is ready for download.")
         
         # Show execution summary
@@ -2134,12 +2914,25 @@ Before submitting, verify:
         
         st.divider()
         
-        # Display the deployment kit
+        # Display the deployment kit in styled report container
         if st.session_state.execution_result:
             result_text = st.session_state.execution_result
             
-            st.subheader("📦 Your Deployment Kit")
+            # Professional report container with gradient accent
+            st.markdown("""
+            <div class="report-container">
+                <div class="report-header">
+                    📦 Your Deployment Kit
+                </div>
+                <div class="report-content">
+            """, unsafe_allow_html=True)
+            
             st.markdown(result_text)
+            
+            st.markdown("""
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
             
             st.divider()
             
@@ -2217,7 +3010,9 @@ Before submitting, verify:
         col_action1, col_action2, col_action3 = st.columns([1, 1, 1])
         
         with col_action2:
+            st.markdown('<div class="primary-action-button">', unsafe_allow_html=True)
             if st.button("🔄 Start New Project", type="primary", use_container_width=True, key="start_new_project_btn"):
+                st.markdown('</div>', unsafe_allow_html=True)
                 # Reset all session state
                 st.session_state.phase = 'idea_input'
                 st.session_state.project_idea = ""
