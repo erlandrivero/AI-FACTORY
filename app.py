@@ -4164,7 +4164,11 @@ Replace all placeholder comments with actual implementations using the extracted
                             
                             # Check if we should retry
                             retry_count = st.session_state.get('build_retry_count', 0)
-                            max_retries = 2
+                            # DISABLED: Testing showed agents don't follow surgical fix instructions
+                            # even when provided with original code. See TEST_LOG_Oct17_Evening_Final.md
+                            # for analysis. Extraction works (17 files, 2.7KB original code), but
+                            # agents rebuild rather than edit. Re-enable when better models available.
+                            max_retries = 0  # Was 2 - set to 2 to enable auto-retry
                             
                             if retry_count < max_retries:
                                 st.warning(f"🔄 Auto-Retry Enabled: Attempting to regenerate with stricter instructions (Attempt {retry_count + 1}/{max_retries})")
@@ -4270,9 +4274,7 @@ Output your report in clear Markdown format with step-by-step fix instructions.
                                 else:
                                     st.info("ℹ️ Code Supervisor not found - using generic retry instructions")
                                 
-                                # Store retry count
-                                st.session_state.build_retry_count = retry_count + 1
-                                
+
                                 # Clear previous results to force regeneration
                                 st.session_state.phase_results = {
                                     'code_extraction': st.session_state.phase_results.get('code_extraction', ''),
