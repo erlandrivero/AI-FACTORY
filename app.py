@@ -3926,12 +3926,26 @@ The user is counting on you to deliver a COMPLETE, WORKING, DEPLOYABLE applicati
             progress_container.empty()
             
             # Extract and store result
-            if hasattr(result, 'raw'):
+            # Try multiple ways to get the COMPLETE output (not just summary)
+            final_output = ""
+            
+            # Method 1: Try to get the full task output
+            if hasattr(result, 'tasks_output') and result.tasks_output:
+                final_output = str(result.tasks_output[0].raw if hasattr(result.tasks_output[0], 'raw') else result.tasks_output[0])
+            # Method 2: Try result.raw
+            elif hasattr(result, 'raw'):
                 final_output = str(result.raw)
+            # Method 3: Try result.output  
             elif hasattr(result, 'output'):
                 final_output = str(result.output)
+            # Method 4: Try converting entire result
             else:
                 final_output = str(result)
+            
+            # DEBUG: Log what we got
+            st.write(f"🔍 STORAGE DEBUG: Captured {len(final_output)} characters from result")
+            if len(final_output) < 1000:
+                st.warning(f"⚠️ STORAGE WARNING: Output seems too short ({len(final_output)} chars). May not have full code.")
             
             # Store in session_state for retry context (Improvement #1: Code Context Memory)
             st.session_state.final_output = final_output
