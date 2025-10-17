@@ -288,6 +288,7 @@ input[type="password"] {
   font-size: var(--font-size-base) !important;
   line-height: var(--leading-normal) !important;
   transition: all var(--transition-base) !important;
+  caret-color: var(--accent-primary) !important; /* Bright purple cursor for visibility */
 }
 
 textarea:hover, 
@@ -313,6 +314,16 @@ input[type="password"]:focus {
 textarea::placeholder, input::placeholder {
   color: var(--text-tertiary) !important;
   opacity: 1 !important;
+}
+
+/* Text Selection - Make it visible */
+textarea::selection,
+input[type="text"]::selection,
+input[type="search"]::selection,
+input[type="email"]::selection,
+input[type="password"]::selection {
+  background: var(--accent-primary) !important;
+  color: var(--text-primary) !important;
 }
 
 /* Text Areas - Extra Padding */
@@ -1553,7 +1564,13 @@ def find_solutions_architect(agents: List[Dict[str, Any]]) -> Dict[str, Any] | N
 
 def find_integration_coordinator(agents: List[Dict[str, Any]]) -> Dict[str, Any] | None:
     """Find the integration coordinator agent."""
-    return find_agent_by_role(agents, "integration coordinator")
+    # Try multiple search terms to find the coordinator
+    coordinator = find_agent_by_role(agents, "integration coordinator")
+    if not coordinator:
+        coordinator = find_agent_by_role(agents, "system integration")
+    if not coordinator:
+        coordinator = find_agent_by_role(agents, "workflow coordinator")
+    return coordinator
 
 def find_qa_validation(agents: List[Dict[str, Any]]) -> Dict[str, Any] | None:
     """Find the QA validation agent."""
@@ -1562,6 +1579,13 @@ def find_qa_validation(agents: List[Dict[str, Any]]) -> Dict[str, Any] | None:
 def find_documentation_specialist(agents: List[Dict[str, Any]]) -> Dict[str, Any] | None:
     """Find the documentation specialist agent."""
     return find_agent_by_role(agents, "documentation specialist")
+
+def find_code_supervisor(agents: List[Dict[str, Any]]) -> Dict[str, Any] | None:
+    """Find the code supervisor agent."""
+    supervisor = find_agent_by_role(agents, "code supervisor")
+    if not supervisor:
+        supervisor = find_agent_by_role(agents, "implementation enforcer")
+    return supervisor
 
 def format_time(seconds: int) -> str:
     """Format seconds into a human-readable time string."""
@@ -2648,7 +2672,7 @@ def project_execution_page():
     # ============================================================================
     elif st.session_state.phase == 'info_gathering':
         st.subheader("🔐 Step 3: Configure API Keys & Secrets")
-        st.write("Provide the necessary API keys for your chosen technology stack.")
+        st.write("Based on your project requirements, we've identified the APIs you'll need:")
         
         # Show selected package
         with st.expander("📦 Your Selected Package", expanded=False):
@@ -2660,31 +2684,141 @@ def project_execution_page():
         
         st.divider()
         
-        st.info("💡 **Tip:** Paste any API keys, connection strings, or configuration you have ready. The AI agents will analyze your requirements and use them appropriately. You can skip this entirely and add keys during deployment.")
+        # Analyze requirements to determine needed APIs
+        required_apis = []
+        project_text = (st.session_state.project_idea + " " + 
+                       st.session_state.chosen_strategy + " " + 
+                       st.session_state.user_selections.get('additional_features', '') + " " +
+                       st.session_state.user_selections.get('special_requirements', '')).lower()
         
-        # Free-form configuration input - let users paste whatever they have
-        st.markdown("### 🔑 Configuration & API Keys (Optional)")
-        st.caption("Provide any keys, tokens, or connection strings you want to use. Format: one per line or JSON")
+        # Define API detection patterns
+        api_configs = {
+            'mongodb': {
+                'keywords': ['mongodb', 'mongo db', 'atlas'],
+                'label': 'MongoDB Connection URI',
+                'placeholder': 'mongodb+srv://username:password@cluster.mongodb.net/database',
+                'help': 'Get this from MongoDB Atlas: https://mongodb.com/atlas',
+                'icon': '🍃'
+            },
+            'postgresql': {
+                'keywords': ['postgresql', 'postgres', 'pg'],
+                'label': 'PostgreSQL Connection String',
+                'placeholder': 'postgresql://username:password@localhost:5432/database',
+                'help': 'Format: postgresql://user:pass@host:port/dbname',
+                'icon': '🐘'
+            },
+            'openai': {
+                'keywords': ['openai', 'gpt', 'chatgpt', 'ai', 'machine learning', 'ml'],
+                'label': 'OpenAI API Key',
+                'placeholder': 'sk-...',
+                'help': 'Get your API key from: https://platform.openai.com/api-keys',
+                'icon': '🤖'
+            },
+            'stripe': {
+                'keywords': ['stripe', 'payment', 'checkout', 'subscription'],
+                'label': 'Stripe API Key',
+                'placeholder': 'sk_test_... or sk_live_...',
+                'help': 'Get from Stripe Dashboard: https://dashboard.stripe.com/apikeys',
+                'icon': '💳'
+            },
+            'aws': {
+                'keywords': ['aws', 'amazon', 's3', 'lambda', 'dynamodb'],
+                'label': 'AWS Access Key',
+                'placeholder': 'AKIA...',
+                'help': 'AWS Access Key ID and Secret from IAM console',
+                'icon': '☁️'
+            },
+            'firebase': {
+                'keywords': ['firebase', 'firestore', 'google cloud'],
+                'label': 'Firebase Config',
+                'placeholder': 'apiKey, authDomain, projectId, etc.',
+                'help': 'Get from Firebase Console: Project Settings',
+                'icon': '🔥'
+            },
+            'sendgrid': {
+                'keywords': ['sendgrid', 'email', 'smtp', 'mail'],
+                'label': 'SendGrid API Key',
+                'placeholder': 'SG...',
+                'help': 'Get from SendGrid: https://app.sendgrid.com/settings/api_keys',
+                'icon': '📧'
+            },
+            'jwt': {
+                'keywords': ['jwt', 'auth', 'authentication', 'login', 'token'],
+                'label': 'JWT Secret Key',
+                'placeholder': 'your-secret-key-at-least-32-characters-long',
+                'help': 'Create a random string for signing JWT tokens',
+                'icon': '🔐'
+            },
+            'netlify': {
+                'keywords': ['netlify'],
+                'label': 'Netlify Access Token',
+                'placeholder': 'nfp_...',
+                'help': 'Get from Netlify: User Settings > Applications > Personal Access Tokens',
+                'icon': '🌐'
+            },
+            'google': {
+                'keywords': ['google api', 'google cloud', 'maps', 'gmail'],
+                'label': 'Google API Key',
+                'placeholder': 'AIza...',
+                'help': 'Get from Google Cloud Console: APIs & Services > Credentials',
+                'icon': '🔍'
+            }
+        }
         
-        if 'config_input' not in st.session_state:
-            st.session_state.config_input = ""
+        # Detect which APIs are needed
+        for api_key, config in api_configs.items():
+            if any(keyword in project_text for keyword in config['keywords']):
+                required_apis.append((api_key, config))
         
-        config_input = st.text_area(
-            "Paste your configuration here",
-            value=st.session_state.config_input,
-            height=200,
-            placeholder="""Examples:
-MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/db
-JWT_SECRET=your_secret_key_here
-NETLIFY_TOKEN=nJYL12345...
-STRIPE_KEY=sk_test_123...
-
-Or paste as JSON, YAML, or any format - agents will parse it.""",
-            help="Agents will intelligently extract and use these in your application",
-            key="api_config_textarea"
-        )
+        # Always include JWT for authentication
+        if not any(api[0] == 'jwt' for api in required_apis):
+            if any(word in project_text for word in ['user', 'login', 'auth', 'account']):
+                required_apis.append(('jwt', api_configs['jwt']))
         
-        st.session_state.config_input = config_input
+        # Initialize API storage in session state
+        if 'api_keys' not in st.session_state:
+            st.session_state.api_keys = {}
+        
+        if required_apis:
+            st.success(f"✅ Detected {len(required_apis)} API(s) needed for your project")
+            
+            st.markdown("### 🔑 Required API Keys")
+            st.caption("Fill in the APIs you have ready. You can skip any and add them during deployment.")
+            
+            # Create separate input for each detected API
+            for api_key, config in required_apis:
+                with st.container():
+                    col1, col2 = st.columns([0.1, 0.9])
+                    with col1:
+                        st.markdown(f"<h2 style='margin:0'>{config['icon']}</h2>", unsafe_allow_html=True)
+                    with col2:
+                        api_value = st.text_input(
+                            config['label'],
+                            value=st.session_state.api_keys.get(api_key, ''),
+                            placeholder=config['placeholder'],
+                            help=config['help'],
+                            key=f"api_input_{api_key}",
+                            type="password" if api_key not in ['mongodb', 'postgresql'] else "default"
+                        )
+                        st.session_state.api_keys[api_key] = api_value
+                    st.divider()
+        else:
+            st.info("💡 No specific APIs detected. You can add configuration in the optional section below.")
+        
+        # Optional: Additional configuration section
+        with st.expander("➕ Additional Configuration (Optional)", expanded=False):
+            st.caption("Add any other API keys, secrets, or configuration not listed above")
+            additional_config = st.text_area(
+                "Additional configuration",
+                value=st.session_state.get('additional_config', ''),
+                height=150,
+                placeholder="""Example:
+TWILIO_ACCOUNT_SID=AC...
+CLOUDINARY_URL=cloudinary://...
+REDIS_URL=redis://...""",
+                key="additional_config_textarea"
+            )
+            st.session_state.additional_config = additional_config
         
         st.divider()
         
@@ -2709,13 +2843,47 @@ Or paste as JSON, YAML, or any format - agents will parse it.""",
                 key="continue_from_config_btn",
                 use_container_width=True
             ):
-                # Store the raw config - agents will parse it
-                st.session_state.raw_config = config_input.strip() if config_input else ""
+                # Collect all API keys into formatted config
+                config_lines = []
+                
+                # Add detected API keys
+                for api_key in st.session_state.api_keys:
+                    api_value = st.session_state.api_keys[api_key]
+                    if api_value and api_value.strip():
+                        # Format based on API type
+                        if api_key == 'mongodb':
+                            config_lines.append(f"MONGODB_URI={api_value}")
+                        elif api_key == 'postgresql':
+                            config_lines.append(f"DATABASE_URL={api_value}")
+                        elif api_key == 'openai':
+                            config_lines.append(f"OPENAI_API_KEY={api_value}")
+                        elif api_key == 'stripe':
+                            config_lines.append(f"STRIPE_SECRET_KEY={api_value}")
+                        elif api_key == 'aws':
+                            config_lines.append(f"AWS_ACCESS_KEY_ID={api_value}")
+                        elif api_key == 'firebase':
+                            config_lines.append(f"FIREBASE_CONFIG={api_value}")
+                        elif api_key == 'sendgrid':
+                            config_lines.append(f"SENDGRID_API_KEY={api_value}")
+                        elif api_key == 'jwt':
+                            config_lines.append(f"JWT_SECRET_KEY={api_value}")
+                        elif api_key == 'netlify':
+                            config_lines.append(f"NETLIFY_AUTH_TOKEN={api_value}")
+                        elif api_key == 'google':
+                            config_lines.append(f"GOOGLE_API_KEY={api_value}")
+                
+                # Add additional config if provided
+                if st.session_state.get('additional_config', '').strip():
+                    config_lines.append(st.session_state.additional_config.strip())
+                
+                # Store formatted config
+                st.session_state.raw_config = "\n".join(config_lines)
                 
                 # Move to building phase
                 st.session_state.phase = 'building'
                 if st.session_state.raw_config:
-                    st.success(f"✅ Configuration saved. Proceeding to build...")
+                    api_count = len([k for k, v in st.session_state.api_keys.items() if v and v.strip()])
+                    st.success(f"✅ Saved {api_count} API key(s). Proceeding to build...")
                 else:
                     st.info("⏭️ No configuration provided. Agents will use defaults.")
                 time.sleep(0.5)
@@ -2894,16 +3062,78 @@ Output a Technical Design Document (TDD) in Markdown that developers can follow 
         # Add extracted patterns to context (replaces raw files)
         if extracted_patterns:
             file_context = f"""
-## 📋 EXTRACTED CODE PATTERNS FROM USER FILES
+## 📋 EXTRACTED CODE PATTERNS FROM USER FILES - COPY THESE EXACTLY
 
 {extracted_patterns}
 
-### 🎯 CRITICAL INSTRUCTION
-The patterns above were extracted from the user's implementation files. You MUST use these exact patterns in your implementation:
-- If a pattern shows a specific ML model → Use that exact model with those parameters
-- If a pattern shows data cleaning steps → Implement those exact steps
-- If a pattern shows a UI component → Build that exact component
-- DO NOT create generic/placeholder versions - use the ACTUAL code patterns shown above
+### 🚨 MANDATORY PATTERN IMPLEMENTATION RULES
+
+**YOU MUST COPY PATTERNS EXACTLY - DO NOT MODIFY OR REINTERPRET**
+
+#### Rule 1: Copy Pattern Code Verbatim
+Each pattern above has a "Target File" and "Implementation" section. Your job:
+1. Create the target file specified
+2. Copy the implementation code EXACTLY as shown
+3. Do NOT simplify, generalize, or modify the pattern
+4. Pattern code = Production code
+
+#### Rule 2: Pattern IDs Are Your Checklist
+- Each pattern has an ID (e.g., Pattern 1.1, Pattern 2.1)
+- You must implement EVERY pattern listed above
+- Add a comment in your code: `// PATTERN X.Y: [name]` or `# PATTERN X.Y: [name]`
+- This helps QA verify you used the patterns
+
+#### Rule 3: Complete the Pattern, Don't Stub It
+❌ WRONG: 
+```python
+# PATTERN 1.2: Data Cleaning
+def clean_dataset(df, target):
+    # Use pattern here...
+    pass
+```
+
+✅ RIGHT:
+```python
+# PATTERN 1.2: Data Cleaning Pipeline
+import pandas as pd
+import numpy as np
+
+def clean_dataset(df, target_column):
+    """Apply cleaning pipeline to dataset."""
+    for col in df.columns:
+        if df[col].dtype in ['float64', 'int64']:
+            df[col].fillna(df[col].mean(), inplace=True)
+        else:
+            df[col].fillna(df[col].mode()[0], inplace=True)
+    
+    df = df.drop_duplicates()
+    
+    if target_column not in df.columns:
+        raise ValueError(f"Target column '{target_column}' not found")
+    
+    return df
+```
+
+#### Rule 4: All Pattern Dependencies Must Be Imported
+Each pattern lists dependencies. Add ALL of them to your file:
+- If pattern shows: `from sklearn.ensemble import RandomForestClassifier`
+- You must include that exact import
+- Check that all imports from patterns are in your requirements.txt/package.json
+
+#### Rule 5: Glue Code Must Connect Patterns
+Patterns are building blocks. You add glue code to connect them:
+- App initialization (Flask app, Express server, React App.js)
+- Route registration (connect Pattern X to endpoint Y)
+- Component composition (render Pattern components in parent)
+- But NEVER rewrite pattern logic itself
+
+**VALIDATION BEFORE DELIVERY:**
+- ✅ Every Pattern X.Y has corresponding comment in code
+- ✅ Pattern code matches extracted version (not modified)
+- ✅ All pattern dependencies are imported
+- ✅ Glue code is complete (no empty functions)
+- ✅ Zero placeholder comments exist
+- ✅ Code can run immediately after `npm install` / `pip install`
 
 {file_context}
 """
@@ -3835,6 +4065,64 @@ Be thorough and uncompromising. If code has placeholders or is incomplete, REJEC
                             if retry_count < max_retries:
                                 st.warning(f"🔄 Auto-Retry Enabled: Attempting to regenerate with stricter instructions (Attempt {retry_count + 1}/{max_retries})")
                                 
+                                # NEW: CODE SUPERVISOR STEP - Create targeted fix instructions
+                                code_supervisor = find_code_supervisor(saved_agents)
+                                supervision_report = ""
+                                
+                                if code_supervisor:
+                                    with st.status("🔍 Code Supervisor: Analyzing failures and creating targeted fix instructions...", expanded=True) as status:
+                                        st.write("Creating surgical fix instructions to prevent 'whack-a-mole' problem...")
+                                        
+                                        # Get extracted patterns from Phase 1
+                                        extracted_patterns = st.session_state.phase_results.get('code_extraction', 'No patterns extracted')
+                                        
+                                        supervisor_task = f"""
+You are reviewing a QA validation failure. Your job is to create TARGETED, SURGICAL fix instructions that prevent the "whack-a-mole" problem.
+
+## QA Validation Report (FAILED)
+{qa_report}
+
+## Extracted Code Patterns from Phase 1
+{extracted_patterns[:3000]}... (truncated)
+
+## Generated Code (for context)
+{final_output[:3000]}... (truncated)
+
+## Your Task
+Create a Code Supervision Report with PRECISE, TARGETED fix instructions for EACH issue found by QA.
+
+For each issue, provide:
+1. **File and Line**: Exact location
+2. **Issue**: What QA found
+3. **Required Fix**: Surgical instruction (fix ONLY this specific issue)
+4. **Implementation**: Code snippet or pattern reference to use
+5. **DO NOT**: What working code to preserve
+6. **Pattern Reference**: Which Phase 1 pattern to use (if applicable)
+
+CRITICAL: Your instructions must be SURGICAL, not wholesale rewrites. Fix the specific line/function flagged by QA without touching working code.
+
+Mark issues as:
+- **CRITICAL**: Must fix (breaks functionality)
+- **HIGH**: Should fix (security/quality)
+- **MEDIUM**: Nice to fix (docs/polish)
+
+Also identify which files QA did NOT flag - mark these as PRESERVE.
+
+Output your report in clear Markdown format with step-by-step fix instructions.
+"""
+                                        
+                                        expected_supervision = "A detailed Code Supervision Report with targeted fix instructions for each QA failure."
+                                        
+                                        supervision_report = run_single_agent_task(code_supervisor, supervisor_task, expected_supervision)
+                                        
+                                        # Show supervision report
+                                        with st.expander("📋 Code Supervision Report", expanded=True):
+                                            st.markdown(supervision_report)
+                                        
+                                        status.update(label="✅ Code Supervision Complete: Targeted fixes identified", state="complete")
+                                else:
+                                    st.info("ℹ️ Code Supervisor not found - using generic retry instructions")
+                                
                                 # Store retry count
                                 st.session_state.build_retry_count = retry_count + 1
                                 
@@ -3844,10 +4132,11 @@ Be thorough and uncompromising. If code has placeholders or is incomplete, REJEC
                                     'architecture': st.session_state.phase_results.get('architecture', '')
                                 }
                                 
-                                # Add stricter context for retry
+                                # Add enhanced context with supervision report for retry
                                 st.session_state.retry_context = f"""
-## 🚨 RETRY ATTEMPT {retry_count + 1} - CRITICAL FAILURES DETECTED
+## 🚨 RETRY ATTEMPT {retry_count + 1} - TARGETED FIXES REQUIRED
 
+{supervision_report if supervision_report else f'''
 **Previous QA Report:**
 {qa_report}
 
@@ -3856,11 +4145,19 @@ Be thorough and uncompromising. If code has placeholders or is incomplete, REJEC
 2. **COMPLETE ALL FUNCTIONS**: Every function must have full implementation with actual business logic
 3. **USE EXTRACTED PATTERNS**: You received extracted code patterns from Phase 1 - YOU MUST USE THEM
 4. **NO MOCK DATA**: No hardcoded test data or mock returns
+'''}
+
+**CRITICAL INSTRUCTIONS:**
+- Fix ONLY the specific issues identified above
+- DO NOT rewrite files that QA marked as passing
+- PRESERVE working code - make surgical edits only
+- Reference Phase 1 extracted patterns when implementing fixes
+- Each fix should target the exact file and line mentioned
 
 **THIS IS YOUR FINAL CHANCE**: If this build still has placeholder code, the system will reject it permanently.
 """
                                 
-                                st.info("⏳ Restarting build with enhanced instructions...")
+                                st.info("⏳ Restarting build with targeted fix instructions...")
                                 time.sleep(2)
                                 st.rerun()
                             else:
