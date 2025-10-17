@@ -3150,7 +3150,18 @@ Patterns are building blocks. You add glue code to connect them:
             additional_context += "- Implement EXACTLY as user described\n"
         
         # Build the comprehensive task description
+        # Put retry context at THE TOP if it exists
+        retry_instructions = st.session_state.get('retry_context', '')
+        
         orchestrator_task_desc = f"""
+{f'''
+{retry_instructions}
+
+{'='*80}
+{'='*80}
+{'='*80}
+
+''' if retry_instructions else ''}
 # 🎯 PROJECT EXECUTION MISSION
 
 You are the Orchestrator leading a team of specialist agents to build a complete, production-ready application.
@@ -3185,8 +3196,6 @@ You are the Orchestrator leading a team of specialist agents to build a complete
 
 ## 🏛️ TECHNICAL ARCHITECTURE
 {architecture_doc if architecture_doc else 'No detailed architecture provided - design as you implement'}
-
-{st.session_state.get('retry_context', '')}
 
 {config_context}
 {additional_context}
@@ -4020,6 +4029,78 @@ Be thorough and uncompromising. If code has placeholders or is incomplete, REJEC
                         expected_qa = "A comprehensive QA report with pass/fail status, list of issues found (if any), and recommendations."
                         
                         qa_report = run_single_agent_task(qa_validator, qa_task, expected_qa)
+                        
+                        # POST-PROCESS: Actually scan for placeholder code (QA agent sometimes lies)
+                        import re
+                        placeholder_patterns = [
+                            r'//\s*TODO',
+                            r'//\s*FIXME',
+                            r'//\s*Add\s+logic',
+                            r'//\s*Implement',
+                            r'//\s*Replace\s+this',
+                            r'#\s*TODO',
+                            r'#\s*FIXME',
+                            r'#\s*Add\s+logic',
+                            r'#\s*Implement',
+                            r'#\s*Logic\s+here',
+                            r'#\s*Replace\s+this',
+                            r'/\*\s*TODO',
+                            r'/\*\s*Add\s+logic',
+                            r'pass\s*#.*placeholder',
+                            r'pass\s*#.*TODO'
+                        ]
+                        
+                        detected_placeholders = []
+                        for pattern in placeholder_patterns:
+                            matches = re.finditer(pattern, final_output, re.IGNORECASE)
+                            for match in matches:
+                                # Find line number
+                                line_num = final_output[:match.start()].count('\n') + 1
+                                context_start = max(0, match.start() - 100)
+                                context_end = min(len(final_output), match.end() + 100)
+                                context = final_output[context_start:context_end]
+                                
+                                # Try to extract filename from context
+                                file_match = re.search(r'File:\s*([^\n]+)', context[::-1])
+                                filename = file_match.group(1)[::-1] if file_match else "Unknown file"
+                                
+                                detected_placeholders.append({
+                                    'pattern': match.group(),
+                                    'line': line_num,
+                                    'file': filename
+                                })
+                        
+                        # If placeholders detected, override QA report
+                        if detected_placeholders and ("✅ PASS" in qa_report or "No placeholder code" in qa_report):
+                            placeholder_list = "\n".join([
+                                f"- **{p['file']}**: Line {p['line']} - `{p['pattern']}`" 
+                                for p in detected_placeholders[:10]  # Limit to first 10
+                            ])
+                            
+                            qa_report = f"""
+## ❌ FAIL - Placeholder Code Detected
+
+**CRITICAL**: The QA agent initially passed this code, but automated scanning detected placeholder comments.
+
+### Detected Placeholder Code:
+{placeholder_list}
+{f"...and {len(detected_placeholders) - 10} more" if len(detected_placeholders) > 10 else ""}
+
+### Issue:
+Placeholder comments indicate incomplete implementations. All functions must have complete business logic.
+
+### Severity: Critical
+
+### Recommendations:
+Replace all placeholder comments with actual implementations using the extracted patterns from Phase 1.
+
+---
+
+**Original QA Report (OVERRIDDEN):**
+{qa_report}
+"""
+                            st.warning(f"⚠️ QA agent claimed PASS, but {len(detected_placeholders)} placeholder(s) detected!")
+                        
                         st.session_state.phase_results['qa_validation'] = qa_report
                         
                         status.update(label="✅ Phase 4: QA Validation Complete", state="complete")
@@ -4107,7 +4188,14 @@ Output your report in clear Markdown format with step-by-step fix instructions.
                                 
                                 # Add enhanced context with supervision report for retry
                                 st.session_state.retry_context = f"""
-## 🚨 RETRY ATTEMPT {retry_count + 1} - TARGETED FIXES REQUIRED
+## 🚨🚨🚨 MANDATORY RETRY INSTRUCTIONS - READ THIS FIRST 🚨🚨🚨
+
+### ⚠️ CRITICAL: THIS IS A RETRY - QA REJECTED PREVIOUS BUILD
+
+**STOP AND READ**: The previous build FAILED QA validation. You are NOT building from scratch.
+You are FIXING SPECIFIC ISSUES identified below. Follow these instructions EXACTLY.
+
+---
 
 {supervision_report if supervision_report else f'''
 **Previous QA Report:**
