@@ -3084,35 +3084,8 @@ Each pattern above has a "Target File" and "Implementation" section. Your job:
 - This helps QA verify you used the patterns
 
 #### Rule 3: Complete the Pattern, Don't Stub It
-❌ WRONG: 
-```python
-# PATTERN 1.2: Data Cleaning
-def clean_dataset(df, target):
-    # Use pattern here...
-    pass
-```
-
-✅ RIGHT:
-```python
-# PATTERN 1.2: Data Cleaning Pipeline
-import pandas as pd
-import numpy as np
-
-def clean_dataset(df, target_column):
-    """Apply cleaning pipeline to dataset."""
-    for col in df.columns:
-        if df[col].dtype in ['float64', 'int64']:
-            df[col].fillna(df[col].mean(), inplace=True)
-        else:
-            df[col].fillna(df[col].mode()[0], inplace=True)
-    
-    df = df.drop_duplicates()
-    
-    if target_column not in df.columns:
-        raise ValueError(f"Target column '{target_column}' not found")
-    
-    return df
-```
+❌ WRONG: def clean_dataset(df, target): pass  # Stub with no implementation
+✅ RIGHT: Copy the complete function from Pattern document with all logic
 
 #### Rule 4: All Pattern Dependencies Must Be Imported
 Each pattern lists dependencies. Add ALL of them to your file:
