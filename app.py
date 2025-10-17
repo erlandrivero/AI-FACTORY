@@ -2983,6 +2983,8 @@ You are the Orchestrator leading a team of specialist agents to build a complete
 ## 🏛️ TECHNICAL ARCHITECTURE
 {architecture_doc if architecture_doc else 'No detailed architecture provided - design as you implement'}
 
+{st.session_state.get('retry_context', '')}
+
 {config_context}
 {additional_context}
 {file_context}
@@ -3825,7 +3827,45 @@ Be thorough and uncompromising. If code has placeholders or is incomplete, REJEC
                             st.error("🚨 QA Validation Failed! The code has quality issues that need to be fixed.")
                             with st.expander("📋 QA Report", expanded=True):
                                 st.markdown(qa_report)
-                            st.warning("⚠️ Proceeding with delivery, but please review the QA report carefully.")
+                            
+                            # Check if we should retry
+                            retry_count = st.session_state.get('build_retry_count', 0)
+                            max_retries = 2
+                            
+                            if retry_count < max_retries:
+                                st.warning(f"🔄 Auto-Retry Enabled: Attempting to regenerate with stricter instructions (Attempt {retry_count + 1}/{max_retries})")
+                                
+                                # Store retry count
+                                st.session_state.build_retry_count = retry_count + 1
+                                
+                                # Clear previous results to force regeneration
+                                st.session_state.phase_results = {
+                                    'code_extraction': st.session_state.phase_results.get('code_extraction', ''),
+                                    'architecture': st.session_state.phase_results.get('architecture', '')
+                                }
+                                
+                                # Add stricter context for retry
+                                st.session_state.retry_context = f"""
+## 🚨 RETRY ATTEMPT {retry_count + 1} - CRITICAL FAILURES DETECTED
+
+**Previous QA Report:**
+{qa_report}
+
+**YOU MUST FIX THESE ISSUES:**
+1. **NO PLACEHOLDER COMMENTS ALLOWED**: Remove ALL comments like "// TODO", "# Implement logic here", "Replace this with..."
+2. **COMPLETE ALL FUNCTIONS**: Every function must have full implementation with actual business logic
+3. **USE EXTRACTED PATTERNS**: You received extracted code patterns from Phase 1 - YOU MUST USE THEM
+4. **NO MOCK DATA**: No hardcoded test data or mock returns
+
+**THIS IS YOUR FINAL CHANCE**: If this build still has placeholder code, the system will reject it permanently.
+"""
+                                
+                                st.info("⏳ Restarting build with enhanced instructions...")
+                                time.sleep(2)
+                                st.rerun()
+                            else:
+                                st.error(f"❌ Max retries ({max_retries}) reached. Build failed quality standards.")
+                                st.warning("⚠️ Proceeding with delivery, but code requires manual fixes.")
                 else:
                     st.warning("⚠️ QA Validation agent not found - proceeding without quality check")
             elif 'qa_validation' in st.session_state.phase_results:
