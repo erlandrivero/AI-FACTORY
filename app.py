@@ -4271,9 +4271,28 @@ Output your report in clear Markdown format with step-by-step fix instructions.
                                 original_code_section = ""
                                 
                                 if supervision_report and 'final_output' in st.session_state:
+                                    # DEBUG: Show extraction process
+                                    st.write(f"🔍 DEBUG: final_output length: {len(st.session_state.final_output)} characters")
+                                    
                                     original_files = extract_files_from_output(st.session_state.final_output)
+                                    st.write(f"🔍 DEBUG: Files extracted: {len(original_files)}")
+                                    if original_files:
+                                        st.write(f"🔍 DEBUG: File paths found: {list(original_files.keys())[:5]}")
+                                    else:
+                                        st.warning("⚠️ DEBUG: No files extracted! Regex pattern may not match orchestrator output format.")
+                                        # Show sample of output format for debugging
+                                        with st.expander("🔍 DEBUG: Sample Output Format (first 1000 chars)"):
+                                            st.code(st.session_state.final_output[:1000])
+                                    
                                     files_to_fix = extract_files_from_supervision_report(supervision_report)
+                                    st.write(f"🔍 DEBUG: Files to fix: {files_to_fix}")
+                                    
                                     original_code_section = generate_original_code_section(original_files, files_to_fix)
+                                    if original_code_section:
+                                        st.success("✅ DEBUG: Original code section generated!")
+                                        st.write(f"   Length: {len(original_code_section)} characters")
+                                    else:
+                                        st.error("❌ DEBUG: Original code section is EMPTY - Surgical Fix Mode will NOT activate!")
                                 
                                 # Add enhanced context with supervision report for retry
                                 st.session_state.retry_context = f"""
