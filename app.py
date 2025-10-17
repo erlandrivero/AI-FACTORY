@@ -3933,6 +3933,9 @@ The user is counting on you to deliver a COMPLETE, WORKING, DEPLOYABLE applicati
             else:
                 final_output = str(result)
             
+            # Store in session_state for retry context (Improvement #1: Code Context Memory)
+            st.session_state.final_output = final_output
+            
             # ==================================================================================
             # POST-PROCESSING PHASES
             # ==================================================================================
@@ -4152,6 +4155,49 @@ Replace all placeholder comments with actual implementations using the extracted
                             if retry_count < max_retries:
                                 st.warning(f"🔄 Auto-Retry Enabled: Attempting to regenerate with stricter instructions (Attempt {retry_count + 1}/{max_retries})")
                                 
+                                # Helper functions for Improvement #1: Code Context Memory
+                                def extract_files_from_output(output_text):
+                                    """Extract individual files from orchestrator's output"""
+                                    import re
+                                    files = {}
+                                    pattern = r'###\s*File:\s*([^\n]+)\n```[a-z]*\n(.*?)```'
+                                    matches = re.findall(pattern, output_text, re.DOTALL | re.MULTILINE)
+                                    for filepath, code in matches:
+                                        files[filepath.strip()] = code.strip()
+                                    return files
+                                
+                                def extract_files_from_supervision_report(supervision_report):
+                                    """Extract list of files that need fixes from Code Supervision Report"""
+                                    import re
+                                    file_pattern = r'\*\*File:\*\*\s*`([^`]+)`'
+                                    files = re.findall(file_pattern, supervision_report)
+                                    return list(set(files))
+                                
+                                def generate_original_code_section(original_files, files_to_fix):
+                                    """Generate 'Original Code' section for retry context"""
+                                    if not original_files or not files_to_fix:
+                                        return ""
+                                    
+                                    section = "\n## 📋 ORIGINAL CODE (For Surgical Fixes)\n\n"
+                                    section += "Below is the COMPLETE original code for each file that needs fixing.\n"
+                                    section += "**You MUST use this as your starting point and apply ONLY the specific fixes.**\n\n"
+                                    section += "---\n\n"
+                                    
+                                    for file_path in files_to_fix:
+                                        if file_path in original_files:
+                                            ext = file_path.split('.')[-1] if '.' in file_path else 'text'
+                                            language_map = {
+                                                'py': 'python', 'js': 'javascript', 'jsx': 'javascript',
+                                                'ts': 'typescript', 'tsx': 'typescript', 'md': 'markdown',
+                                                'json': 'json', 'html': 'html', 'css': 'css'
+                                            }
+                                            lang = language_map.get(ext, ext)
+                                            
+                                            section += f"### Original Code for: `{file_path}`\n\n"
+                                            section += f"```{lang}\n{original_files[file_path]}\n```\n\n---\n\n"
+                                    
+                                    return section
+                                
                                 # NEW: CODE SUPERVISOR STEP - Create targeted fix instructions
                                 code_supervisor = find_code_supervisor(saved_agents)
                                 supervision_report = ""
@@ -4219,6 +4265,16 @@ Output your report in clear Markdown format with step-by-step fix instructions.
                                     'architecture': st.session_state.phase_results.get('architecture', '')
                                 }
                                 
+                                # IMPROVEMENT #1: Extract original code and generate context
+                                original_files = {}
+                                files_to_fix = []
+                                original_code_section = ""
+                                
+                                if supervision_report and 'final_output' in st.session_state:
+                                    original_files = extract_files_from_output(st.session_state.final_output)
+                                    files_to_fix = extract_files_from_supervision_report(supervision_report)
+                                    original_code_section = generate_original_code_section(original_files, files_to_fix)
+                                
                                 # Add enhanced context with supervision report for retry
                                 st.session_state.retry_context = f"""
 ## 🚨🚨🚨 MANDATORY RETRY INSTRUCTIONS - READ THIS FIRST 🚨🚨🚨
@@ -4229,6 +4285,27 @@ Output your report in clear Markdown format with step-by-step fix instructions.
 You are FIXING SPECIFIC ISSUES identified below. Follow these instructions EXACTLY.
 
 ---
+
+## 🔪 SURGICAL FIX MODE ACTIVATED
+
+You are now in **SURGICAL FIX MODE**. This means:
+- You will receive the ORIGINAL CODE for each file that needs fixing
+- You must ONLY modify the lines specified in the fix instructions
+- You must OUTPUT THE COMPLETE FILE with your fix incorporated
+- You must NOT refactor, rewrite, or alter any other part of the file
+
+**Failure to preserve the rest of the code is a CRITICAL ERROR.**
+
+Your agents have been trained in Surgical Fix Mode. They know what to do.
+Make sure you delegate properly to activate their surgical fix capabilities.
+
+---
+
+{original_code_section}
+
+---
+
+## 🎯 FIX INSTRUCTIONS
 
 {supervision_report if supervision_report else f'''
 **Previous QA Report:**
@@ -4241,15 +4318,31 @@ You are FIXING SPECIFIC ISSUES identified below. Follow these instructions EXACT
 4. **NO MOCK DATA**: No hardcoded test data or mock returns
 '''}
 
-**CRITICAL INSTRUCTIONS:**
-- Fix ONLY the specific issues identified above
-- DO NOT rewrite files that QA marked as passing
-- PRESERVE working code - make surgical edits only
-- Reference Phase 1 extracted patterns when implementing fixes
-- Each fix should target the exact file and line mentioned
+---
 
-**THIS IS YOUR FINAL CHANCE**: If this build still has placeholder code, the system will reject it permanently.
+## ⚠️ CRITICAL RULES
+
+1. **Take the ORIGINAL CODE provided above**
+2. **Apply ONLY the specific fix mentioned**
+3. **Output the COMPLETE file** (not just changed lines)
+4. **Preserve EVERYTHING ELSE exactly as it was**
+
+Think of yourself as a surgeon: precise incision, specific fix, preserve the rest.
+
+**DO NOT:**
+- ❌ Rewrite the entire file
+- ❌ Refactor code that wasn't flagged
+- ❌ Add features not requested
+- ❌ Change formatting or variable names
+- ❌ Fix other bugs you notice
+
+**THIS IS YOUR FINAL CHANCE**: If you rewrite files instead of making surgical fixes, 
+the system will REJECT your work.
 """
+                                
+                                # Store for potential verification (Improvement #3)
+                                st.session_state.original_files = original_files
+                                st.session_state.files_to_fix = files_to_fix
                                 
                                 st.info("⏳ Restarting build with targeted fix instructions...")
                                 time.sleep(2)
