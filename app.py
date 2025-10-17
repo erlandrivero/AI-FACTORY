@@ -4033,21 +4033,54 @@ Be thorough and uncompromising. If code has placeholders or is incomplete, REJEC
                         # POST-PROCESS: Actually scan for placeholder code (QA agent sometimes lies)
                         import re
                         placeholder_patterns = [
+                            # Explicit placeholders
                             r'//\s*TODO',
                             r'//\s*FIXME',
-                            r'//\s*Add\s+logic',
-                            r'//\s*Implement',
-                            r'//\s*Replace\s+this',
+                            r'//\s*XXX',
                             r'#\s*TODO',
                             r'#\s*FIXME',
-                            r'#\s*Add\s+logic',
-                            r'#\s*Implement',
-                            r'#\s*Logic\s+here',
-                            r'#\s*Replace\s+this',
+                            r'#\s*XXX',
                             r'/\*\s*TODO',
-                            r'/\*\s*Add\s+logic',
-                            r'pass\s*#.*placeholder',
-                            r'pass\s*#.*TODO'
+                            r'/\*\s*FIXME',
+                            
+                            # Action-based placeholders
+                            r'//\s*Add\s+(logic|code|implementation|function)',
+                            r'//\s*(Implement|Replace|Complete|Fill\s+in)',
+                            r'#\s*Add\s+(logic|code|implementation|function)',
+                            r'#\s*(Implement|Replace|Complete|Fill\s+in)',
+                            
+                            # Ellipsis placeholders (very common!)
+                            r'//\s*\.{3,}',  # // ...
+                            r'#\s*\.{3,}',   # # ...
+                            r'//\s*\.{3,}.*?(logic|code|API|function|here)',  # // ... Logic here
+                            r'#\s*\.{3,}.*?(logic|code|API|function|here)',   # # ... logic here
+                            
+                            # "Logic here" patterns
+                            r'//\s*Logic\s+(here|to\s+call|goes\s+here)',
+                            r'#\s*Logic\s+(here|to\s+call|goes\s+here)',
+                            
+                            # Mock/Dummy/Test data indicators
+                            r'//\s*(Mock|Dummy|Test)\s+(data|results?|response)',
+                            r'#\s*(Mock|Dummy|Test)\s+(data|results?|response)',
+                            r'//\s*Placeholder',
+                            r'#\s*Placeholder',
+                            
+                            # Empty implementation indicators
+                            r'pass\s*#.*(placeholder|TODO|implement|logic|here)',
+                            r'return\s+None\s*#.*(placeholder|TODO|implement)',
+                            r'return\s+\{\}\s*#.*(placeholder|TODO|mock|dummy)',
+                            
+                            # Common stub patterns
+                            r'//\s*Your\s+code\s+here',
+                            r'#\s*Your\s+code\s+here',
+                            r'//\s*Write\s+your',
+                            r'#\s*Write\s+your',
+                            
+                            # Framework/library specific stubs
+                            r'//\s*Component\s+logic\s+here',
+                            r'//\s*API\s+call\s+here',
+                            r'#\s*API\s+call\s+here',
+                            r'//\s*State\s+management\s+here',
                         ]
                         
                         detected_placeholders = []
